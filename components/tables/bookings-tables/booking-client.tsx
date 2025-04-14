@@ -5,7 +5,8 @@ import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { columns } from './columns';
 import { Booking } from '@/app/api/bookings/bookings-admin';
-
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 interface BookingClientProps {
   data: Booking[];
   pageCount: number;
@@ -25,6 +26,15 @@ export const BookingClient: React.FC<BookingClientProps> = ({
 }) => {
   const router = useRouter();
 
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`/api/bookings/${id}`);
+      toast.success('Reserva removida com sucesso');
+      router.refresh();
+    } catch (error) {
+      toast.error('Algo deu errado ao remover a reserva');
+    }
+  };
   return (
     <>
       <div className="flex items-start justify-between">
@@ -41,7 +51,9 @@ export const BookingClient: React.FC<BookingClientProps> = ({
         pageCount={pageCount}
         pageSizeOptions={pageSizeOptions}
         onPageChange={onPageChange}
+        onDelete={(id) => handleDelete(id)}
         onPageSizeChange={onPageSizeChange}
+        totalUsers={data.length}
         onSearchChange={onSearchChange}
         searchPlaceholder="Buscar por nome do passageiro..."
       />

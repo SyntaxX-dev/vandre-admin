@@ -5,6 +5,7 @@ import NextTopLoader from 'nextjs-toploader';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { Suspense } from 'react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,9 +25,11 @@ export default async function RootLayout({
         <NextTopLoader />
         <Toaster />
         <AuthProvider>
-          {children}
+          <Suspense>
+            {children}
+          </Suspense>
         </AuthProvider>
       </body>
-    </html> 
+    </html>
   );
 }

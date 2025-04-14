@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { ColumnDef, PaginationState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,12 +14,14 @@ interface DataTableProps<TData, TValue> {
   totalUsers: number;
   data: TData[];
   searchKey: string;
+  searchPlaceholder?: string;
   pageCount: number;
   pageSizeOptions?: number[];
   onPageChange?: (pageIndex: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
   onSearchChange?: (searchValue: string) => void;
   onDelete: (id: string) => void;
+  onRowClick?: (data: TData) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -28,6 +30,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   pageCount,
   onDelete,
+  searchPlaceholder,
   pageSizeOptions = [10, 20, 30, 40, 50],
   onPageChange,
   onPageSizeChange,
@@ -42,7 +45,11 @@ export function DataTable<TData, TValue>({
   const per_page = searchParams?.get('limit') ?? '10';
   const perPageAsNumber = Number(per_page);
   const fallbackPerPage = isNaN(perPageAsNumber) ? 10 : perPageAsNumber;
-
+  const handleDelete = (id: string) => {
+    if (onDelete) {
+      onDelete(id);
+    }
+  };
   const [{ pageIndex, pageSize }, setPagination] = React.useState<PaginationState>({
     pageIndex: fallbackPage - 1,
     pageSize: fallbackPerPage,

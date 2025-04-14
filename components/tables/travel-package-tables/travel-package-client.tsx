@@ -6,7 +6,9 @@ import { Plus, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { columns } from './columns';
 import { TravelPackage } from '@/app/api/travel-package/travel-packages-admin';
-
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { API_URL } from '@/services/apiUrl';
 interface TravelPackageClientProps {
   data: TravelPackage[];
   pageCount: number;
@@ -32,7 +34,15 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
   const handleRowClick = (packageData: TravelPackage) => {
     router.push(`/dashboard/travel-packages/${packageData.id}?tab=bookings`);
   };
-
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/travel-package/${id}`);
+      toast.success('Pacote removido com sucesso');
+      router.refresh();
+    } catch (error) {
+      toast.error('Erro ao remover o pacote');
+    }
+  };
   return (
     <>
       <div className="flex items-start justify-between">
@@ -68,7 +78,9 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
         onSearchChange={onSearchChange}
-        onRowClick={handleRowClick}  // <-- Adicionar esta prop para tornar as linhas clicáveis
+        onRowClick={handleRowClick} 
+        totalUsers={data.length}
+        onDelete={handleDelete}
       />
     </>
   );

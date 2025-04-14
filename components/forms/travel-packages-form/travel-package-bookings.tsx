@@ -26,14 +26,14 @@ interface TravelPackageBookingsProps {
   travelPackageId: string;
 }
 
-export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({ 
-  travelPackageId 
+export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
+  travelPackageId
 }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [packageInfo, setPackageInfo] = useState<{name: string, travelMonth: string} | null>(null);
+  const [packageInfo, setPackageInfo] = useState<{ name: string, travelMonth: string } | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -43,12 +43,12 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
         setLoading(true);
         // Buscamos todas as reservas e filtramos pelo ID do pacote no cliente
         const result = await getAdminBookings(0, 1000); // Buscar um número grande para pegar todas
-        
+
         // Filtrar apenas as reservas do pacote atual
         const filteredBookings = result.bookings.filter(
           booking => booking.travelPackageId === travelPackageId
         );
-        
+
         setBookings(filteredBookings);
 
         // Buscar informações do pacote para o cabeçalho do PDF
@@ -77,14 +77,14 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
     try {
       setDeleteLoading(true);
       await deleteBooking(id);
-      
+
       // Atualizar a lista após excluir
       setBookings(bookings.filter(booking => booking.id !== id));
-      
+
       toast({
         title: 'Reserva excluída com sucesso'
       });
-      
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -100,10 +100,10 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
   // Exportar lista de passageiros para CSV
   const exportToCSV = () => {
     if (bookings.length === 0) return;
-    
+
     // Preparar as colunas do CSV
     const headers = ['Nome Completo', 'CPF', 'RG', 'Email', 'Telefone', 'Data Nascimento', 'Local de Embarque'];
-    
+
     // Preparar os dados
     const csvData = bookings.map(booking => [
       booking.fullName,
@@ -114,13 +114,13 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       booking.birthDate ? (typeof booking.birthDate === 'string' ? booking.birthDate.split('T')[0] : format(booking.birthDate, 'dd/MM/yyyy')) : '',
       booking.boardingLocation
     ]);
-    
+
     // Combinar cabeçalhos e dados
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => row.join(','))
     ].join('\n');
-    
+
     // Criar e fazer download do arquivo
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -136,24 +136,24 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
   // Exportar lista de passageiros para PDF
   const exportToPDF = () => {
     if (bookings.length === 0) return;
-    
+
     // @ts-ignore
     const doc = new jsPDF();
-    
+
     // Adicionar título
     doc.setFontSize(18);
     doc.text('Lista de Passageiros', 14, 22);
-    
+
     // Adicionar informações do pacote
     doc.setFontSize(12);
     if (packageInfo) {
       doc.text(`Pacote: ${packageInfo.name}`, 14, 32);
       doc.text(`Data: ${packageInfo.travelMonth}`, 14, 38);
     }
-    
+
     doc.text(`Total de passageiros: ${bookings.length}`, 14, 44);
     doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 50);
-    
+
     // Converter dados para formato de tabela
     const tableColumn = ["Nome", "CPF", "RG", "Telefone", "Email", "Data Nasc.", "Local de Embarque"];
     const tableRows = bookings.map(booking => [
@@ -165,24 +165,24 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       booking.birthDate ? (typeof booking.birthDate === 'string' ? booking.birthDate.split('T')[0] : format(booking.birthDate, 'dd/MM/yyyy')) : '',
       booking.boardingLocation
     ]);
-    
+
     // @ts-ignore
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 60,
       styles: { fontSize: 10, cellPadding: 2 },
-      columnStyles: { 
+      columnStyles: {
         0: { cellWidth: 40 }, // Nome
         4: { cellWidth: 45 }, // Email
         6: { cellWidth: 30 }, // Local de embarque
       },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
-    
+
     // Salvar o PDF
     doc.save(`passageiros-${packageInfo?.name || travelPackageId}-${new Date().toISOString().split('T')[0]}.pdf`);
-    
+
     toast({
       title: 'PDF gerado com sucesso',
       description: 'A lista de passageiros foi exportada para PDF'
@@ -220,14 +220,14 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       cell: ({ row }) => {
         const createdAt = row.getValue('created_at');
         if (!createdAt) return '-';
-        
+
         try {
-          const date = typeof createdAt === 'string' 
-            ? new Date(createdAt) 
-            : createdAt instanceof Date 
-              ? createdAt 
+          const date = typeof createdAt === 'string'
+            ? new Date(createdAt)
+            : createdAt instanceof Date
+              ? createdAt
               : new Date();
-              
+
           return format(date, 'dd/MM/yyyy');
         } catch {
           return String(createdAt).split('T')[0] || '-';
@@ -238,7 +238,7 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       id: 'actions',
       cell: ({ row }) => {
         const booking = row.original;
-        
+
         return (
           <>
             <AlertModal
@@ -276,11 +276,11 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
         <div>
           <CardTitle>Reservas para este Pacote</CardTitle>
           <CardDescription>
-            {bookings.length} 
+            {bookings.length}
             {bookings.length === 1 ? ' reserva encontrada' : ' reservas encontradas'}
           </CardDescription>
         </div>
-        
+
         {bookings.length > 0 && (
           <div className="flex space-x-2">
             <Button
@@ -310,11 +310,14 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
         ) : bookings.length === 0 ? (
           <p>Nenhuma reserva encontrada para este pacote.</p>
         ) : (
-          <DataTable
+          <DataTable<Booking, any>
             columns={columns}
             data={bookings}
             searchKey="fullName"
             searchPlaceholder="Buscar por nome do passageiro..."
+            totalUsers={bookings.length}
+            pageCount={1}
+            onDelete={(id: string) => handleDelete(id)}
           />
         )}
       </CardContent>
