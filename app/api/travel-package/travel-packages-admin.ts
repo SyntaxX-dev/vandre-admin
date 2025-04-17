@@ -12,6 +12,7 @@ export interface TravelPackage {
   boardingLocations: string[];
   travelMonth: string;
   travelDate?: string | null;
+  returnDate?: string | null;
   travelTime?: string | null;
   created_at: Date | string;
   updated_at: Date | string;

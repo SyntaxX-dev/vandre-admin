@@ -14,6 +14,7 @@ interface CreateTravelPackagePayload {
   boardingLocations: string[] | string;
   travelMonth: string;
   travelDate?: string;
+  returnDate?: string;
   travelTime?: string;
 }
 
@@ -87,6 +88,10 @@ export const createTravelPackage = async (
   
   if (data.travelDate) {
     formData.append("travelDate", data.travelDate);
+  }
+
+  if (data.returnDate) {
+    formData.append("returnDate", data.returnDate);
   }
   
   if (data.travelTime) {

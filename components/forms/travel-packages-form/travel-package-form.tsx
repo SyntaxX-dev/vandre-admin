@@ -34,9 +34,15 @@ const formSchema = z.object({
   pdfUrl: z.string().url({ message: 'URL do PDF inválida' }),
   maxPeople: z.coerce.number().int().positive({ message: 'Número máximo de pessoas deve ser positivo' }),
   boardingLocations: z.array(z.string()).min(1, { message: 'Pelo menos um local de embarque é necessário' }),
-  travelMonth: z.string().min(1, { message: 'Mês da viagem é obrigatório' }),
+  travelMonth: z.string().min(1, { message: 'Mês da viagem é obrigatório' })
+  .regex(/^[A-Za-zÀ-ÖØ-öø-ÿ]+$/, { 
+    message: 'Mês deve conter apenas o nome (ex: Janeiro)' 
+  }),
   travelDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, { 
     message: 'Data deve estar no formato "DD/MM/AAAA"' 
+  }).optional().or(z.literal('')),
+  returnDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, { 
+    message: 'Data de retorno deve estar no formato "DD/MM/AAAA"' 
   }).optional().or(z.literal('')),
   travelTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { 
     message: 'Horário deve estar no formato "HH:MM"' 
@@ -101,6 +107,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         boardingLocations: processBoardingLocations(),
         travelMonth: initialData.travelMonth,
         travelDate: initialData.travelDate || '',
+        returnDate: initialData.returnDate || '',
         travelTime: initialData.travelTime || ''
       }
     : {
@@ -112,6 +119,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         boardingLocations: [],
         travelMonth: '',
         travelDate: '',
+        returnDate: '', 
         travelTime: ''
       };
 
@@ -365,16 +373,16 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
             name="travelMonth"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Mês da Viagem (Formato: Mês/Ano)</FormLabel>
+                <FormLabel>Mês da Viagem</FormLabel>
                 <FormControl>
                   <Input
                     disabled={loading}
-                    placeholder="Janeiro/2025"
+                    placeholder="Janeiro"
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
-                  Exemplo: Janeiro/2025, Fevereiro/2025
+                  Exemplo: Janeiro, Fevereiro, Março...
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -396,6 +404,27 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
                 </FormControl>
                 <FormDescription>
                   Formato: DD/MM/AAAA (exemplo: 15/01/2025)
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="returnDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data de Retorno (Opcional)</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled={loading}
+                    placeholder="DD/MM/AAAA"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Formato: DD/MM/AAAA (exemplo: 20/01/2025)
                 </FormDescription>
                 <FormMessage />
               </FormItem>

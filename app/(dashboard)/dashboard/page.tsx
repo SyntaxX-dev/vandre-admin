@@ -67,11 +67,7 @@ export default function DashboardPage() {
         ).length;
 
         // Active Packages: pacotes com travelMonth atual ou futuro
-        const activePackages = packages.filter((pkg) => {
-          const [month, year] = pkg.travelMonth.split('/');
-          const travelDate = new Date(`${month}/01/${year}`);
-          return travelDate >= new Date();
-        }).length;
+        const activePackages = packages.length;
 
         setMetrics({
           totalRevenue,
@@ -222,7 +218,7 @@ export default function DashboardPage() {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
-                        Pacotes Ativos
+                        Total de pacotes de viagem
                       </CardTitle>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"

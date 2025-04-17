@@ -36,17 +36,17 @@ export const normalizeBoardingLocations = (boardingLocations: string[] | string 
   /**
    * Formata o mês da viagem para garantir que esteja no formato "Mês/Ano"
    */
-  export const formatTravelMonth = (month: string): string => {
-    // Se já está no formato Mês/Ano, retorna como está
-    if (/^[A-Za-zÀ-ÖØ-öø-ÿ]+\/\d{4}$/.test(month)) {
-      return month;
+export const formatTravelMonth = (month: string): string => {
+  // Se contém caracteres que não são letras (incluindo "/"), limpa para manter apenas o nome do mês
+  if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]+$/.test(month)) {
+    // Se tiver um formato como "Janeiro/2025", extrair apenas o nome do mês
+    if (month.includes('/')) {
+      return month.split('/')[0].trim();
     }
     
-    // Se é um mês sem o ano, adiciona o ano atual
-    if (/^[A-Za-zÀ-ÖØ-öø-ÿ]+$/.test(month)) {
-      const currentYear = new Date().getFullYear();
-      return `${month}/${currentYear}`;
-    }
-    
-    return month;
-  };
+    // Remover quaisquer caracteres que não sejam letras
+    return month.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '').trim();
+  }
+  
+  return month;
+}

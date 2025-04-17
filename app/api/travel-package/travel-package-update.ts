@@ -12,6 +12,7 @@ interface UpdateTravelPackagePayload {
   boardingLocations?: string[];
   travelMonth?: string;
   travelDate?: string;
+  returnDate?: string;
   travelTime?: string;
 }
 
