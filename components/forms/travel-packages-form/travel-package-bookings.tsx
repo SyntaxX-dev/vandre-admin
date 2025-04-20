@@ -136,24 +136,21 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
   // Exportar lista de passageiros para PDF
   const exportToPDF = () => {
     if (bookings.length === 0) return;
-
     // @ts-ignore
-    const doc = new jsPDF();
-
+    const doc = new jsPDF({
+      orientation: 'landscape', // Formato paisagem para mais espaço horizontal
+    });
     // Adicionar título
     doc.setFontSize(18);
-    doc.text('Lista de Passageiros', 14, 22);
-
+    doc.text('Lista de Passageiros', 20, 20);
     // Adicionar informações do pacote
     doc.setFontSize(12);
     if (packageInfo) {
-      doc.text(`Pacote: ${packageInfo.name}`, 14, 32);
-      doc.text(`Data: ${packageInfo.travelMonth}`, 14, 38);
+      doc.text(`Pacote: ${packageInfo.name}`, 20, 30);
+      doc.text(`Data: ${packageInfo.travelMonth}`, 20, 36);
     }
-
-    doc.text(`Total de passageiros: ${bookings.length}`, 14, 44);
-    doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 50);
-
+    doc.text(`Total de passageiros: ${bookings.length}`, 20, 42);
+    doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 48);
     // Converter dados para formato de tabela
     const tableColumn = ["Nome", "CPF", "RG", "Telefone", "Email", "Data Nasc.", "Local de Embarque"];
     const tableRows = bookings.map(booking => [
@@ -165,27 +162,34 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       booking.birthDate ? (typeof booking.birthDate === 'string' ? booking.birthDate.split('T')[0] : format(booking.birthDate, 'dd/MM/yyyy')) : '',
       booking.boardingLocation
     ]);
-
     // @ts-ignore
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 60,
-      styles: { fontSize: 10, cellPadding: 2 },
+      startY: 55,
+      styles: { fontSize: 10, cellPadding: 3 }, // Aumentado o padding para dar mais espaço
       columnStyles: {
-        0: { cellWidth: 40 }, // Nome
-        4: { cellWidth: 45 }, // Email
-        6: { cellWidth: 30 }, // Local de embarque
+        0: { cellWidth: 50 }, // Nome - mais espaço para nomes
+        1: { cellWidth: 35 }, // CPF - mais espaço
+        2: { cellWidth: 30 }, // RG - mais espaço
+        3: { cellWidth: 30 }, // Telefone - mais espaço
+        4: { cellWidth: 60 }, // Email - bem mais espaço para emails longos
+        5: { cellWidth: 25 }, // Data Nasc. - espaço suficiente
+        6: { cellWidth: 45 }, // Local de Embarque - mais espaço
       },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
-
-    // Salvar o PDF
-    doc.save(`passageiros-${packageInfo?.name || travelPackageId}-${new Date().toISOString().split('T')[0]}.pdf`);
-
+    
+    // Em vez de salvar diretamente, criar um blob e abrir em uma nova guia
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    // Abrir em uma nova guia
+    window.open(pdfUrl, '_blank');
+    
     toast({
       title: 'PDF gerado com sucesso',
-      description: 'A lista de passageiros foi exportada para PDF'
+      description: 'A lista de passageiros foi aberta em uma nova guia'
     });
   };
 
@@ -299,7 +303,7 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
               className="flex items-center gap-1"
             >
               <FileText className="h-4 w-4" />
-              Gerar PDF
+              Abrir PDF
             </Button>
           </div>
         )}

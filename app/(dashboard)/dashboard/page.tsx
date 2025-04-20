@@ -112,10 +112,10 @@ export default function DashboardPage() {
           <h2 className="text-3xl font-bold tracking-tight">
             Olá, Turma do Vandré 👋
           </h2>
-          <div className="hidden items-center space-x-2 md:flex">
+          {/* <div className="hidden items-center space-x-2 md:flex">
             <CalendarDateRangePicker />
             <Button onClick={handleDownload}>Download</Button>
-          </div>
+          </div> */}
         </div>
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
@@ -133,7 +133,7 @@ export default function DashboardPage() {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
-                        Total Revenue
+                        Total de Vendas
                       </CardTitle>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                     <CardHeader>
                       <CardTitle>Reservas recentes</CardTitle>
                       <CardDescription>
-                        {bookings.length} bookings made recently
+                        {bookings.length} reservas feitas recentemente
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

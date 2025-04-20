@@ -21,7 +21,7 @@ export type User = {
 
 export const navItems: NavItem[] = [
   {
-    title: 'Dashboard',
+    title: 'Painel',
     href: '/dashboard',
     icon: 'dashboard',
     label: 'Dashboard',
@@ -30,7 +30,7 @@ export const navItems: NavItem[] = [
     }
   },
   {
-    title: 'Travel',
+    title: 'Viagens',
     href: '/dashboard/travel-packages',
     icon: 'dashboard',
     label: 'Travel',
@@ -39,7 +39,7 @@ export const navItems: NavItem[] = [
     }
   },
   {
-    title: 'bookings',
+    title: 'Reservas',
     href: '/dashboard/bookings',
     icon: 'dashboard',
     label: 'bookings',
@@ -111,7 +111,7 @@ export const navItems: NavItem[] = [
   //   }
   // },
   {
-    title: 'Logout',
+    title: 'Sair',
     icon: 'login',
     href: '#',
     onClick: logout

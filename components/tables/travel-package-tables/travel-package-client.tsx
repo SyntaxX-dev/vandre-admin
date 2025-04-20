@@ -55,7 +55,7 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
             variant="outline"
             className="text-xs md:text-sm"
             onClick={() => {
-              // Implementar ação para ver todas as reservas se necessário
+              router.push('/dashboard/bookings');
             }}
           >
             <Users className="mr-2 h-4 w-4" /> Todas as Reservas
