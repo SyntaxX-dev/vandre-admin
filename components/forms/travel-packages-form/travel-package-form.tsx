@@ -122,8 +122,8 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         name: initialData.name,
         price: initialData.price,
         description: initialData.description,
-        pdfMethod: initialData.pdfUrl ? 'url' : 'upload',
-        pdfUrl: initialData.pdfUrl || '',
+        pdfMethod: 'upload',
+        pdfUrl: initialData.pdfUrl || 'https://heyzine.com/flip-book/17596072a4.html',
         maxPeople: initialData.maxPeople,
         boardingLocations: processBoardingLocations(),
         travelMonth: initialData.travelMonth,
@@ -135,8 +135,8 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         name: '',
         price: 0,
         description: '',
-        pdfMethod: 'url',
-        pdfUrl: '',
+        pdfMethod: 'upload',
+        pdfUrl: 'https://heyzine.com/flip-book/17596072a4.html',
         maxPeople: 1,
         boardingLocations: [],
         travelMonth: '',
@@ -222,7 +222,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
             }
           });
           
-          // Adicionar hasPdfFile como true para indicar upload de PDF
+          // Adicionar hasPdfFile como true para indicar upload of PDF
           formData.append('hasPdfFile', 'true');
           
           // Adicionar os arquivos se existirem
@@ -249,7 +249,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
           // Update normal com JSON quando usando URL
           await updateTravelPackage(initialData.id, {
             ...formattedValues,
-            pdfUrl: values.pdfMethod === 'url' ? values.pdfUrl : '',
+            pdfUrl: values.pdfMethod === 'url' ? 'https://heyzine.com/flip-book/17596072a4.html' : '',
             hasPdfFile: false
           });
         }
@@ -317,7 +317,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
             {
               ...formattedValues,
               hasPdfFile: false,
-              pdfUrl: values.pdfMethod === 'url' ? values.pdfUrl : undefined,
+              pdfUrl: 'https://heyzine.com/flip-book/17596072a4.html',
             },
             imageFile,
             null
@@ -462,7 +462,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
                   >
                     <FormItem className="flex items-center space-x-3 space-y-0">
                       <FormControl>
-                        <RadioGroupItem value="url" />
+                        <RadioGroupItem value="url" disabled />
                       </FormControl>
                       <FormLabel className="font-normal">
                         Fornecer URL do PDF
@@ -493,7 +493,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
                   <FormControl>
                     <Input
                       disabled={loading}
-                      placeholder="https://exemplo.com/itinerario.pdf"
+                      readOnly
                       {...field}
                     />
                   </FormControl>

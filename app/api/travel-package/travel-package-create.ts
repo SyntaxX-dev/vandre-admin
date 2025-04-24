@@ -25,10 +25,8 @@ export const createTravelPackage = async (
   image: File,
   pdfFile?: File | null
 ): Promise<TravelPackage> => {
-  // Obter token de várias fontes possíveis
   let token;
   
-  // Tentar getToken primeiro (função client-side)
   try {
     const tokenData = await getToken();
     token = tokenData?.token;
@@ -36,7 +34,6 @@ export const createTravelPackage = async (
     console.warn("Erro ao buscar token via getToken:", error);
   }
   
-  // Se não encontrou, tentar cookies diretamente
   if (!token) {
     try {
       const encryptedToken = Cookies.get('token');
@@ -48,22 +45,18 @@ export const createTravelPackage = async (
     }
   }
   
-  // Tentativa alternativa: verificar se há um token não criptografado
   if (!token) {
     token = Cookies.get('access_token');
   }
   
-  // Última tentativa: localStorage
   if (!token) {
     try {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         try {
-          // Tentar como JSON
           const parsedToken = JSON.parse(storedToken);
           token = parsedToken.token || parsedToken.access_token || storedToken;
         } catch {
-          // Se não for JSON, usar como string
           token = storedToken;
         }
       }
@@ -88,14 +81,20 @@ export const createTravelPackage = async (
   
   // Determinar se vamos usar URL ou arquivo para o PDF
   const isPdfUpload = data.pdfMethod === 'upload' || data.hasPdfFile;
-  
-  if (isPdfUpload) {
+
+  // Validate: if pdfMethod is 'upload', ensure pdfFile exists
+  if (data.pdfMethod === 'upload' && !pdfFile) {
+    throw new Error("Você selecionou a opção de upload de PDF, mas nenhum arquivo PDF foi fornecido.");
+  }
+
+  if (isPdfUpload && pdfFile) {
     formData.append("hasPdfFile", "true");
-    // Não incluir pdfUrl se estamos fazendo upload de um arquivo
   } else {
     formData.append("hasPdfFile", "false");
     if (data.pdfUrl) {
       formData.append("pdfUrl", data.pdfUrl);
+    } else {
+      throw new Error("Você deve fornecer uma URL de PDF ou fazer upload de um arquivo PDF.");
     }
   }
   
@@ -114,7 +113,6 @@ export const createTravelPackage = async (
     formData.append("travelTime", data.travelTime);
   }
 
-  // Adicionar locais de embarque
   if (Array.isArray(data.boardingLocations)) {
     data.boardingLocations.forEach(location => {
       formData.append("boardingLocations", location);
@@ -123,10 +121,8 @@ export const createTravelPackage = async (
     formData.append("boardingLocations", data.boardingLocations);
   }
 
-  // Adicionar imagem
   formData.append("image", image);
   
-  // Adicionar arquivo PDF se disponível
   if (isPdfUpload && pdfFile) {
     formData.append("pdf", pdfFile);
   }
@@ -135,7 +131,7 @@ export const createTravelPackage = async (
   console.log("Dados enviados:", {
     name: data.name,
     price: data.price,
-    hasPdfFile: isPdfUpload,
+    hasPdfFile: isPdfUpload && !!pdfFile,
     imageFilename: image.name,
     pdfFilename: pdfFile?.name || 'Não enviado'
   });
@@ -145,15 +141,14 @@ export const createTravelPackage = async (
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        // Não definir Content-Type para multipart/form-data, o navegador irá adicionar automaticamente com o boundary correto
       },
       body: formData,
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Erro na resposta:", response.status, errorText);
-      throw new Error(`Erro ao criar pacote de viagem: ${response.status} ${response.statusText}`);
+      const errorData = await response.json();
+      console.error("Erro na resposta:", response.status, errorData);
+      throw new Error(errorData.message || `Erro ao criar pacote de viagem: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
