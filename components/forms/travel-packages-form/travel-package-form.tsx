@@ -21,17 +21,28 @@ import { Heading } from '@/components/ui/heading';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { createTravelPackage } from '@/app/api/travel-package/travel-package-create';
+import { updateTravelPackageWithFiles } from '@/app/api/travel-package/travel-package-update-with-files';
 import { updateTravelPackage } from '@/app/api/travel-package/travel-package-update';
 import { TravelPackage } from '@/app/api/travel-package/travel-packages-admin';
 import { AlertModal } from '@/components/modal/alert-modal';
 import { deleteTravelPackage } from '@/app/api/travel-package/travel-package-delete';
 import { formatTravelMonth } from './travel-package-utils';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   price: z.coerce.number().min(0, { message: 'Preço deve ser um número positivo' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
-  pdfUrl: z.string().url({ message: 'URL do PDF inválida' }),
+  pdfMethod: z.enum(['url', 'upload'], { 
+    required_error: 'Por favor, selecione uma opção para o PDF'
+  }),
+  pdfUrl: z.string()
+    .url({ message: 'URL do PDF inválida' })
+    .optional()
+    .refine(val => val !== undefined && val !== '', {
+      message: 'URL do PDF é obrigatória quando o método é URL',
+      path: ['pdfUrl']
+    }),
   maxPeople: z.coerce.number().int().positive({ message: 'Número máximo de pessoas deve ser positivo' }),
   boardingLocations: z.array(z.string()).min(1, { message: 'Pelo menos um local de embarque é necessário' }),
   travelMonth: z.string().min(1, { message: 'Mês da viagem é obrigatório' })
@@ -47,7 +58,18 @@ const formSchema = z.object({
   travelTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { 
     message: 'Horário deve estar no formato "HH:MM"' 
   }).optional().or(z.literal(''))
-});
+}).refine(
+  (data) => {
+    if (data.pdfMethod === 'url') {
+      return data.pdfUrl && data.pdfUrl.trim() !== '';
+    }
+    return true;
+  },
+  {
+    message: "Por favor, forneça uma URL de PDF válida",
+    path: ["pdfUrl"],
+  }
+);
 
 type TravelPackageFormValues = z.infer<typeof formSchema>;
 
@@ -71,17 +93,15 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
   const action = initialData ? 'Salvar alterações' : 'Criar';
 
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
-  // Processar locais de embarque do initialData (string[] ou string)
   const processBoardingLocations = (): string[] => {
     if (!initialData?.boardingLocations) return [];
     
     if (Array.isArray(initialData.boardingLocations)) {
-      // Se algum item contém vírgulas, pode ser necessário dividi-lo
       const processedLocations: string[] = [];
       initialData.boardingLocations.forEach(location => {
         if (typeof location === 'string' && location.includes(',')) {
-          // Dividir em múltiplos locais se contiver vírgulas
           processedLocations.push(...location.split(',').map(l => l.trim()));
         } else {
           processedLocations.push(location);
@@ -102,7 +122,8 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         name: initialData.name,
         price: initialData.price,
         description: initialData.description,
-        pdfUrl: initialData.pdfUrl,
+        pdfMethod: initialData.pdfUrl ? 'url' : 'upload',
+        pdfUrl: initialData.pdfUrl || '',
         maxPeople: initialData.maxPeople,
         boardingLocations: processBoardingLocations(),
         travelMonth: initialData.travelMonth,
@@ -114,6 +135,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
         name: '',
         price: 0,
         description: '',
+        pdfMethod: 'url',
         pdfUrl: '',
         maxPeople: 1,
         boardingLocations: [],
@@ -128,7 +150,6 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
     defaultValues
   });
 
-  // Função para adicionar local de embarque
   const addBoardingLocation = () => {
     if (boardingLocationInput.trim()) {
       const currentLocations = form.getValues().boardingLocations || [];
@@ -137,32 +158,101 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
     }
   };
 
-  // Função para remover local de embarque
   const removeBoardingLocation = (index: number) => {
     const currentLocations = form.getValues().boardingLocations || [];
     form.setValue('boardingLocations', currentLocations.filter((_, i) => i !== index));
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'pdf') => {
     const file = event.target.files?.[0];
     if (file) {
-      setImageFile(file);
+      if (fileType === 'image') {
+        setImageFile(file);
+      } else if (fileType === 'pdf') {
+        setPdfFile(file);
+      }
     }
   };
 
   const onSubmit = async (values: TravelPackageFormValues) => {
     try {
       setLoading(true);
-
+  
+      // Verificar se os campos obrigatórios estão presentes
+      if (values.pdfMethod === 'upload' && !pdfFile && !initialData) {
+        toast({
+          variant: 'destructive',
+          title: 'Arquivo PDF obrigatório',
+          description: 'Por favor, faça upload de um arquivo PDF para o pacote de viagem.'
+        });
+        setLoading(false);
+        return;
+      }
+  
       // Certificar-se de que o travelMonth esteja no formato correto
       const formattedValues = {
         ...values,
         travelMonth: formatTravelMonth(values.travelMonth)
       };
-
+  
       if (initialData) {
         // Atualizar pacote existente
-        await updateTravelPackage(initialData.id, formattedValues);
+        if (values.pdfMethod === 'upload') {
+          // Se for upload com arquivo, usar FormData para o update
+          const formData = new FormData();
+          
+          // Adicionar os campos do formattedValues
+          Object.entries(formattedValues).forEach(([key, value]) => {
+            // Pular pdfMethod no FormData
+            if (key === 'pdfMethod') return;
+            
+            // Sempre enviar pdfUrl vazia quando o método for upload para substituir no servidor
+            if (key === 'pdfUrl') {
+              formData.append('pdfUrl', ''); // Importante: Enviar pdfUrl vazia para remover URL existente
+              return;
+            }
+            
+            // Tratar arrays (como boardingLocations)
+            if (Array.isArray(value)) {
+              value.forEach(item => {
+                formData.append(key, item);
+              });
+            } else if (value !== undefined && value !== null) {
+              formData.append(key, String(value));
+            }
+          });
+          
+          // Adicionar hasPdfFile como true para indicar upload de PDF
+          formData.append('hasPdfFile', 'true');
+          
+          // Adicionar os arquivos se existirem
+          if (imageFile) {
+            formData.append('image', imageFile);
+          }
+          
+          if (pdfFile) {
+            formData.append('pdf', pdfFile);
+          } else {
+            // Se não tem PDF, verificar se é um update e se necessário
+            toast({
+              variant: 'destructive',
+              title: 'Arquivo PDF obrigatório',
+              description: 'Por favor, faça upload de um arquivo PDF para o pacote de viagem.'
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // Chamar função para update com FormData
+          await updateTravelPackageWithFiles(initialData.id, formData);
+        } else {
+          // Update normal com JSON quando usando URL
+          await updateTravelPackage(initialData.id, {
+            ...formattedValues,
+            pdfUrl: values.pdfMethod === 'url' ? values.pdfUrl : '',
+            hasPdfFile: false
+          });
+        }
       } else {
         // Criar novo pacote
         if (!imageFile) {
@@ -175,9 +265,66 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
           return;
         }
         
-        await createTravelPackage(formattedValues, imageFile);
+        // Criar pacote com arquivo PDF ou URL
+        if (values.pdfMethod === 'upload') {
+          if (!pdfFile) {
+            toast({
+              variant: 'destructive',
+              title: 'Arquivo PDF obrigatório',
+              description: 'Por favor, faça upload de um arquivo PDF para o pacote de viagem.'
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // Preparar FormData para criar pacote
+          const formData = new FormData();
+          Object.entries(formattedValues).forEach(([key, value]) => {
+            // Pular pdfMethod e pdfUrl no FormData para upload
+            if (key === 'pdfMethod' || key === 'pdfUrl') return;
+            
+            // Tratar arrays (como boardingLocations)
+            if (Array.isArray(value)) {
+              value.forEach(item => {
+                formData.append(key, item);
+              });
+            } else if (value !== undefined && value !== null) {
+              formData.append(key, String(value));
+            }
+          });
+          
+          // Configurar hasPdfFile como true para indicar upload de PDF
+          formData.append('hasPdfFile', 'true');
+          formData.append('pdfUrl', ''); // Enviar pdfUrl vazia
+          
+          // Adicionar arquivos
+          formData.append('image', imageFile);
+          formData.append('pdf', pdfFile);
+          
+          // Chamar createTravelPackage com os arquivos
+          await createTravelPackage(
+            {
+              ...formattedValues,
+              hasPdfFile: true,
+              pdfUrl: ''
+            },
+            imageFile,
+            pdfFile
+          );
+        } else {
+          // Criar com URL do PDF
+          await createTravelPackage(
+            {
+              ...formattedValues,
+              hasPdfFile: false,
+              pdfUrl: values.pdfMethod === 'url' ? values.pdfUrl : undefined,
+            },
+            imageFile,
+            null
+          );
+        }
       }
-
+  
       toast({
         title: toastMessage,
       });
@@ -300,23 +447,91 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
             )}
           />
           
+          {/* Campo para escolher entre URL e Upload para o PDF */}
           <FormField
             control={form.control}
-            name="pdfUrl"
+            name="pdfMethod"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>URL do PDF</FormLabel>
+              <FormItem className="space-y-3">
+                <FormLabel>Como deseja fornecer o PDF do itinerário?</FormLabel>
                 <FormControl>
-                  <Input
-                    disabled={loading}
-                    placeholder="https://exemplo.com/itinerario.pdf"
-                    {...field}
-                  />
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    className="flex flex-col space-y-1"
+                  >
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="url" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Fornecer URL do PDF
+                      </FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="upload" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Fazer upload do arquivo PDF
+                      </FormLabel>
+                    </FormItem>
+                  </RadioGroup>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
+          {form.watch('pdfMethod') === 'url' && (
+            <FormField
+              control={form.control}
+              name="pdfUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL do PDF</FormLabel>
+                  <FormControl>
+                    <Input
+                      disabled={loading}
+                      placeholder="https://exemplo.com/itinerario.pdf"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+          
+          {/* Campo para upload do PDF - mostrado apenas quando o método é Upload */}
+          {form.watch('pdfMethod') === 'upload' && (
+            <div className="flex flex-col gap-4 p-4 border border-gray-300 rounded-md shadow-sm">
+              <FormLabel>Arquivo PDF do Itinerário</FormLabel>
+              <div className="flex items-center">
+                <label
+                  htmlFor="pdf"
+                  className="cursor-pointer bg-blue-500 text-white py-2 px-4 rounded-md shadow-sm hover:bg-blue-600 transition-colors text-sm font-medium"
+                >
+                  Escolher arquivo PDF
+                </label>
+                <span className="ml-4 text-gray-600 text-sm truncate">
+                  {pdfFile ? pdfFile.name : 'Nenhum arquivo selecionado'}
+                </span>
+                <input
+                  type="file"
+                  id="pdf"
+                  accept="application/pdf"
+                  onChange={(e) => handleFileChange(e, 'pdf')}
+                  className="hidden"
+                />
+              </div>
+              {form.formState.errors.pdfMethod && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.pdfMethod.message}
+                </p>
+              )}
+            </div>
+          )}
           
           <FormField
             control={form.control}
@@ -352,7 +567,7 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
                 type="file"
                 id="image"
                 accept="image/*"
-                onChange={handleFileChange}
+                onChange={(e) => handleFileChange(e, 'image')}
                 className="hidden"
               />
             </div>

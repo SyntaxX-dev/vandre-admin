@@ -46,7 +46,7 @@ export default function UserAuthForm() {
       const result = await adminLogin(formData);
 
       if ('error' in result) {
-        toast.error('Ocorreu um erro: ' + result.error);
+        toast.error('Ocorreu um erro ao fazer login. Verifique suas credenciais.');
       } else {
         toast.success('Login bem-sucedido!');
         window.location.href = callbackUrl ?? '/dashboard';

@@ -1,4 +1,4 @@
-// C:\Users\Gabriel\Documents\vandre-admin\app\api\travel-package\travel-package-update.ts
+// C:\Users\Gabriel\Documents\vandre-admin\app\api\travel-package\travel-package-update-with-files.ts
 
 import { API_URL } from "@/services/apiUrl";
 import { getToken } from "@/services/token/getToken";
@@ -6,23 +6,9 @@ import { TravelPackage } from "./travel-packages-admin";
 import Cookies from 'js-cookie';
 import { decrypt } from "@/services/crypto/crypt";
 
-interface UpdateTravelPackagePayload {
-  name?: string;
-  price?: number;
-  description?: string;
-  pdfUrl?: string;
-  hasPdfFile?: boolean;
-  maxPeople?: number;
-  boardingLocations?: string[] | string;
-  travelMonth?: string;
-  travelDate?: string;
-  returnDate?: string;
-  travelTime?: string;
-}
-
-export const updateTravelPackage = async (
+export const updateTravelPackageWithFiles = async (
   id: string,
-  data: UpdateTravelPackagePayload
+  formData: FormData
 ): Promise<TravelPackage> => {
   // Obter token de várias fontes possíveis
   let token;
@@ -78,20 +64,16 @@ export const updateTravelPackage = async (
 
   const url = `${API_URL}/travel-packages/${id}`;
 
-  // Se boardingLocations é um array, precisa ser tratado especificamente
-  const requestData = { ...data };
-
-  console.log("Fazendo requisição para:", url);
-  console.log("Dados enviados:", requestData);
-
+  console.log("Fazendo requisição PUT para:", url);
+  
   try {
     const response = await fetch(url, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+        // Não definir Content-Type para multipart/form-data
       },
-      body: JSON.stringify(requestData),
+      body: formData,
     });
 
     if (!response.ok) {
@@ -100,7 +82,9 @@ export const updateTravelPackage = async (
       throw new Error(`Erro ao atualizar pacote de viagem: ${response.status} ${response.statusText}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log("Pacote atualizado com sucesso:", result);
+    return result;
   } catch (error) {
     console.error("Erro completo:", error);
     throw error;

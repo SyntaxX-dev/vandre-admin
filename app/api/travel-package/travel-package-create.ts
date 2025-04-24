@@ -9,7 +9,9 @@ interface CreateTravelPackagePayload {
   name: string;
   price: number;
   description: string;
-  pdfUrl: string;
+  pdfUrl?: string;
+  pdfMethod?: string;
+  hasPdfFile?: boolean;
   maxPeople: number;
   boardingLocations: string[] | string;
   travelMonth: string;
@@ -20,7 +22,8 @@ interface CreateTravelPackagePayload {
 
 export const createTravelPackage = async (
   data: CreateTravelPackagePayload,
-  image: File
+  image: File,
+  pdfFile?: File | null
 ): Promise<TravelPackage> => {
   // Obter token de várias fontes possíveis
   let token;
@@ -82,7 +85,20 @@ export const createTravelPackage = async (
   formData.append("name", data.name);
   formData.append("price", data.price.toString());
   formData.append("description", data.description);
-  formData.append("pdfUrl", data.pdfUrl);
+  
+  // Determinar se vamos usar URL ou arquivo para o PDF
+  const isPdfUpload = data.pdfMethod === 'upload' || data.hasPdfFile;
+  
+  if (isPdfUpload) {
+    formData.append("hasPdfFile", "true");
+    // Não incluir pdfUrl se estamos fazendo upload de um arquivo
+  } else {
+    formData.append("hasPdfFile", "false");
+    if (data.pdfUrl) {
+      formData.append("pdfUrl", data.pdfUrl);
+    }
+  }
+  
   formData.append("maxPeople", data.maxPeople.toString());
   formData.append("travelMonth", data.travelMonth);
   
@@ -109,13 +125,19 @@ export const createTravelPackage = async (
 
   // Adicionar imagem
   formData.append("image", image);
+  
+  // Adicionar arquivo PDF se disponível
+  if (isPdfUpload && pdfFile) {
+    formData.append("pdf", pdfFile);
+  }
 
   console.log("Fazendo requisição para:", url);
   console.log("Dados enviados:", {
     name: data.name,
     price: data.price,
-    // outros campos
-    imageFilename: image.name
+    hasPdfFile: isPdfUpload,
+    imageFilename: image.name,
+    pdfFilename: pdfFile?.name || 'Não enviado'
   });
 
   try {
