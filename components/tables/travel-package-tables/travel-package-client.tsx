@@ -9,6 +9,7 @@ import { TravelPackage } from '@/app/api/travel-package/travel-packages-admin';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { API_URL } from '@/services/apiUrl';
+import { deleteTravelPackage } from '@/app/api/travel-package/travel-package-delete';
 interface TravelPackageClientProps {
   data: TravelPackage[];
   pageCount: number;
@@ -34,13 +35,21 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
   const handleRowClick = (packageData: TravelPackage) => {
     router.push(`/dashboard/travel-packages/${packageData.id}?tab=bookings`);
   };
+  
+  // MODIFICAR ESTA FUNÇÃO 
   const handleDelete = async (id: string) => {
     try {
-      await axios.delete(`${API_URL}/travel-package/${id}`);
+      // Validar que temos um ID válido antes de prosseguir
+      if (!id || id === 'undefined') {
+        toast.error('ID do pacote inválido');
+        return;
+      }
+      
+      await deleteTravelPackage(id);
       toast.success('Pacote removido com sucesso');
       router.refresh();
-    } catch (error) {
-      toast.error('Erro ao remover o pacote');
+    } catch (error: any) {
+      toast.error(`Erro ao remover o pacote: ${error.message}`);
     }
   };
   return (

@@ -25,10 +25,26 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Verificar se data.id está definido antes de usar
+  const travelPackageId = data?.id;
+
   const onConfirm = async () => {
     try {
+      // Validar que temos um ID válido
+      if (!travelPackageId) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao excluir',
+          description: 'ID do pacote de viagem não encontrado'
+        });
+        setOpen(false);
+        return;
+      }
+
       setLoading(true);
-      await deleteTravelPackage(data.id);
+      
+      // Agora podemos ter certeza de que temos um ID válido
+      await deleteTravelPackage(travelPackageId);
       
       toast({
         title: 'Pacote de viagem excluído com sucesso'
@@ -48,11 +64,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    router.push(`/dashboard/travel-packages/${data.id}?tab=details`);
+    if (travelPackageId) {
+      router.push(`/dashboard/travel-packages/${travelPackageId}?tab=details`);
+    }
   };
 
   const handleViewBookings = () => {
-    router.push(`/dashboard/travel-packages/${data.id}?tab=bookings`);
+    if (travelPackageId) {
+      router.push(`/dashboard/travel-packages/${travelPackageId}?tab=bookings`);
+    }
   };
 
   return (
