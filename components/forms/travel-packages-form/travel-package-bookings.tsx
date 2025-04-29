@@ -34,44 +34,45 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [packageInfo, setPackageInfo] = useState<{ name: string, travelMonth: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-render
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchBookings = async () => {
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      // Buscamos todas as reservas e filtramos pelo ID do pacote no cliente
+      const result = await getAdminBookings(0, 1000); // Buscar um número grande para pegar todas
+
+      // Filtrar apenas as reservas do pacote atual
+      const filteredBookings = result.bookings.filter(
+        booking => booking.travelPackageId === travelPackageId
+      );
+
+      setBookings(filteredBookings);
+
+      // Buscar informações do pacote para o cabeçalho do PDF
       try {
-        setLoading(true);
-        // Buscamos todas as reservas e filtramos pelo ID do pacote no cliente
-        const result = await getAdminBookings(0, 1000); // Buscar um número grande para pegar todas
-
-        // Filtrar apenas as reservas do pacote atual
-        const filteredBookings = result.bookings.filter(
-          booking => booking.travelPackageId === travelPackageId
-        );
-
-        setBookings(filteredBookings);
-
-        // Buscar informações do pacote para o cabeçalho do PDF
-        try {
-          const packageData = await getTravelPackageById(travelPackageId);
-          setPackageInfo({
-            name: packageData.name,
-            travelMonth: packageData.travelMonth
-          });
-        } catch (error) {
-          console.error('Erro ao buscar detalhes do pacote:', error);
-        }
+        const packageData = await getTravelPackageById(travelPackageId);
+        setPackageInfo({
+          name: packageData.name,
+          travelMonth: packageData.travelMonth
+        });
       } catch (error) {
-        console.error('Erro ao buscar reservas:', error);
-      } finally {
-        setLoading(false);
+        console.error('Erro ao buscar detalhes do pacote:', error);
       }
-    };
+    } catch (error) {
+      console.error('Erro ao buscar reservas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (travelPackageId) {
       fetchBookings();
     }
-  }, [travelPackageId]);
+  }, [travelPackageId, refreshKey]); // Add refreshKey to dependencies
 
   const handleDelete = async (id: string) => {
     try {
@@ -80,6 +81,9 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
 
       // Atualizar a lista após excluir
       setBookings(bookings.filter(booking => booking.id !== id));
+
+      // Increase refresh key to trigger a refresh
+      setRefreshKey(prevKey => prevKey + 1);
 
       toast({
         title: 'Reserva excluída com sucesso'
@@ -322,6 +326,7 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
             totalUsers={bookings.length}
             pageCount={1}
             onDelete={(id: string) => handleDelete(id)}
+            key={`travel-package-bookings-${refreshKey}`} // Add key to force re-render
           />
         )}
       </CardContent>

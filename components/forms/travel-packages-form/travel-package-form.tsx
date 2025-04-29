@@ -353,7 +353,9 @@ export const TravelPackageForm: React.FC<TravelPackageFormProps> = ({
           title: 'Pacote de viagem excluído.'
         });
         
+        // Navigate directly to the travel packages list
         router.push('/dashboard/travel-packages');
+        // Force refresh of the page to reload the data
         router.refresh();
       }
     } catch (error: any) {

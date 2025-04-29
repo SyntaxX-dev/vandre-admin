@@ -57,12 +57,12 @@ export default function Page() {
       <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
         <div className="flex items-center justify-between">
           <BreadCrumb items={breadcrumbItems} />
-          <Button
+          {/* <Button
             onClick={() => router.push('/dashboard/bookings/new')}
             className="text-xs md:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" /> Nova Reserva
-          </Button>
+          </Button> */}
         </div>
         
         {loading ? (

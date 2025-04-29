@@ -4,7 +4,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Booking } from '@/app/api/bookings/bookings-admin';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<Booking>[] = [
+// We need to accept onRefreshData callback to handle deletions
+export const columns = (onRefreshData?: () => void): ColumnDef<Booking>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -68,6 +69,11 @@ export const columns: ColumnDef<Booking>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => <CellAction data={row.original} />
+    cell: ({ row }) => (
+      <CellAction 
+        data={row.original} 
+        onDeleteSuccess={onRefreshData}
+      />
+    )
   }
 ];

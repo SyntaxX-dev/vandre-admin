@@ -17,9 +17,13 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface CellActionProps {
   data: Booking;
+  onDeleteSuccess?: () => void; // New prop to handle successful deletion
 }
 
-export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+export const CellAction: React.FC<CellActionProps> = ({ 
+  data, 
+  onDeleteSuccess 
+}) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -33,6 +37,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       toast({
         title: 'Reserva excluída com sucesso'
       });
+      
+      // Call the onDeleteSuccess callback if provided
+      if (onDeleteSuccess) {
+        onDeleteSuccess();
+      }
       
       router.refresh();
     } catch (error: any) {
