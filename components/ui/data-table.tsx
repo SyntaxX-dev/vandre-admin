@@ -1,5 +1,3 @@
-// C:\Users\User\Documents\vandre-admin\components\ui\data-table.tsx
-
 import React, { useState, useEffect } from 'react';
 import { ColumnDef, PaginationState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
@@ -45,9 +43,13 @@ export function DataTable<TData, TValue>({
   const searchParams = useSearchParams();
   const [filterValue, setFilterValue] = useState<string>(initialSearchValue);
   const [tempFilterValue, setTempFilterValue] = useState<string>(initialSearchValue);
+  
+  // Parse page from URL or use default
   const page = searchParams?.get('page') ?? '1';
   const pageAsNumber = Number(page);
   const fallbackPage = isNaN(pageAsNumber) || pageAsNumber < 1 ? 1 : pageAsNumber;
+  
+  // Parse page size from URL or use default
   const per_page = searchParams?.get('limit') ?? '10';
   const perPageAsNumber = Number(per_page);
   const fallbackPerPage = isNaN(perPageAsNumber) ? 10 : perPageAsNumber;
@@ -58,12 +60,39 @@ export function DataTable<TData, TValue>({
     }
   };
   
+  // Initialize pagination state from URL params
   const [{ pageIndex, pageSize }, setPagination] = React.useState<PaginationState>({
-    pageIndex: fallbackPage - 1,
+    pageIndex: fallbackPage - 1, // Convert from 1-based (URL) to 0-based (internal state)
     pageSize: fallbackPerPage,
   });
 
-  // Atualiza o filterValue quando initialSearchValue mudar
+  // Keep URL in sync with pagination state
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    
+    // Update URL when pagination changes (convert from 0-based to 1-based for URL)
+    newParams.set('page', String(pageIndex + 1));
+    newParams.set('limit', String(pageSize));
+    
+    // Preserve search if it exists
+    if (filterValue) {
+      newParams.set('search', filterValue);
+    }
+    
+    // Update URL without refreshing the page
+    router.push(`?${newParams.toString()}`, { scroll: false });
+    
+  }, [pageIndex, pageSize, filterValue]);
+
+  // Synchronize with URL changes (useful for back/forward navigation)
+  useEffect(() => {
+    setPagination({
+      pageIndex: fallbackPage - 1,
+      pageSize: fallbackPerPage
+    });
+  }, [fallbackPage, fallbackPerPage]);
+
+  // Update filterValue when initialSearchValue changes
   useEffect(() => {
     if (initialSearchValue !== filterValue) {
       setFilterValue(initialSearchValue);
@@ -71,11 +100,13 @@ export function DataTable<TData, TValue>({
     }
   }, [initialSearchValue]);
 
-  React.useEffect(() => {
+  // Notify parent component when page changes
+  useEffect(() => {
     if (onPageChange) onPageChange(pageIndex);
   }, [pageIndex, onPageChange]);
 
-  React.useEffect(() => {
+  // Notify parent component when page size changes
+  useEffect(() => {
     if (onPageSizeChange) onPageSizeChange(pageSize);
   }, [pageSize, onPageSizeChange]);
 
@@ -108,29 +139,32 @@ export function DataTable<TData, TValue>({
   };
 
   const handleSearchClick = () => {
-    // Atualiza o filterValue com o valor temporário
+    // Update filterValue with temporary value
     setFilterValue(tempFilterValue);
     
-    // Notifica o componente pai
+    // Reset to first page when searching
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+    
+    // Notify parent component
     if (onSearchChange) {
       onSearchChange(tempFilterValue);
     }
     
-    // Atualiza a URL
+    // Update URL
     const queryParams = {
-      ...Object.fromEntries(searchParams.entries()),
-      page: 1,
+      page: 1, // Always go back to first page for new searches
+      limit: pageSize,
       search: tempFilterValue,
     };
 
-    // Apenas atualiza a URL se houver um termo de busca
+    // Update URL if there's a search term, otherwise clear it
     if (tempFilterValue.trim()) {
-      router.push(`?${createQueryString(queryParams)}`);
+      router.push(`?${createQueryString(queryParams)}`, { scroll: false });
     } else if (searchParams?.has('search')) {
-      // Remove o parâmetro de busca da URL se o campo de busca estiver vazio
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete('search');
-      router.push(`?${newParams.toString()}`);
+      newParams.set('page', '1'); // Reset to page 1
+      router.push(`?${newParams.toString()}`, { scroll: false });
     }
   };
 
@@ -138,6 +172,11 @@ export function DataTable<TData, TValue>({
     if (e.key === 'Enter') {
       handleSearchClick();
     }
+  };
+
+  // Custom handlers to manage both state and URL updates
+  const goToPage = (pageIndex: number) => {
+    setPagination(prev => ({ ...prev, pageIndex }));
   };
 
   return (
@@ -210,7 +249,7 @@ export function DataTable<TData, TValue>({
               <p className="whitespace-nowrap text-sm font-medium">Linhas por página</p>
               <Select
                 value={String(pageSize)}
-                onValueChange={(value) => setPagination(prev => ({ ...prev, pageSize: Number(value) }))}
+                onValueChange={(value) => setPagination(prev => ({ ...prev, pageSize: Number(value), pageIndex: 0 }))}
               >
                 <SelectTrigger className="h-8 w-[70px]">
                   <SelectValue>{pageSize}</SelectValue>
@@ -228,15 +267,15 @@ export function DataTable<TData, TValue>({
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:justify-end">
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            Página {table.getState().pagination.pageIndex + 1} de {table.getPageCount() || 1}
+            Página {pageIndex + 1} de {table.getPageCount() || 1}
           </div>
           <div className="flex items-center space-x-2">
             <Button
               aria-label="Ir para primeira página"
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => goToPage(0)}
+              disabled={pageIndex === 0}
             >
               <DoubleArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -244,8 +283,8 @@ export function DataTable<TData, TValue>({
               aria-label="Ir para página anterior"
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => goToPage(Math.max(0, pageIndex - 1))}
+              disabled={pageIndex === 0}
             >
               <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -253,8 +292,8 @@ export function DataTable<TData, TValue>({
               aria-label="Ir para próxima página"
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => goToPage(Math.min(pageCount - 1, pageIndex + 1))}
+              disabled={pageIndex >= pageCount - 1}
             >
               <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -262,8 +301,8 @@ export function DataTable<TData, TValue>({
               aria-label="Ir para última página"
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
+              onClick={() => goToPage(pageCount - 1)}
+              disabled={pageIndex >= pageCount - 1}
             >
               <DoubleArrowRightIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
