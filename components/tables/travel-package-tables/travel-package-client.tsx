@@ -1,8 +1,10 @@
+// C:\Users\User\Documents\vandre-admin\components\tables\travel-package-tables\travel-package-client.tsx
+
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { columns } from './columns';
 import { TravelPackage } from '@/app/api/travel-package/travel-packages-admin';
@@ -10,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { getAdminTravelPackages } from '@/app/api/travel-package/travel-packages-admin';
 import { useToast } from '@/components/ui/use-toast';
 import { deleteTravelPackage } from '@/app/api/travel-package/travel-package-delete';
+import { Badge } from '@/components/ui/badge';
 
 interface TravelPackageClientProps {
   data: TravelPackage[];
@@ -19,6 +22,8 @@ interface TravelPackageClientProps {
   onPageSizeChange?: (pageSize: number) => void;
   onSearchChange?: (searchValue: string) => void;
   onMonthChange?: (month: string) => void;
+  currentSearchValue?: string;
+  isLoading?: boolean;
 }
 
 export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
@@ -28,7 +33,9 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
   onPageChange,
   onPageSizeChange,
   onSearchChange,
-  onMonthChange
+  onMonthChange,
+  currentSearchValue = '',
+  isLoading = false,
 }) => {
   const router = useRouter();
   const { toast } = useToast();
@@ -36,16 +43,23 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [currentPageSize, setCurrentPageSize] = useState(10);
-  const [currentSearchValue, setCurrentSearchValue] = useState('');
+  const [internalSearchValue, setInternalSearchValue] = useState(currentSearchValue);
   const [currentMonth, setCurrentMonth] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Atualiza o termo de busca interno quando o prop mudar
+  useEffect(() => {
+    setInternalSearchValue(currentSearchValue);
+  }, [currentSearchValue]);
 
   // Function to refresh the data
   const refreshData = async () => {
     try {
+      setIsRefreshing(true);
       const result = await getAdminTravelPackages(
         currentPageIndex * currentPageSize,
         currentPageSize,
-        currentSearchValue,
+        internalSearchValue,
         currentMonth
       );
       
@@ -56,6 +70,8 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
       setRefreshCounter(prev => prev + 1);
     } catch (error) {
       console.error('Error refreshing travel packages:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -76,18 +92,6 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
       setCurrentPageSize(currentPageSize);
     }
   }, [currentPageSize, onPageSizeChange]);
-
-  useEffect(() => {
-    if (onSearchChange) {
-      setCurrentSearchValue(currentSearchValue);
-    }
-  }, [currentSearchValue, onSearchChange]);
-
-  useEffect(() => {
-    if (onMonthChange) {
-      setCurrentMonth(currentMonth);
-    }
-  }, [currentMonth, onMonthChange]);
 
   // Função para lidar com clique na linha
   const handleRowClick = (packageData: TravelPackage) => {
@@ -145,7 +149,7 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
 
   // Handle search change with state tracking
   const handleSearchChange = (searchValue: string) => {
-    setCurrentSearchValue(searchValue);
+    setInternalSearchValue(searchValue);
     if (onSearchChange) {
       onSearchChange(searchValue);
     }
@@ -156,6 +160,14 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
     setCurrentMonth(month);
     if (onMonthChange) {
       onMonthChange(month);
+    }
+  };
+
+  // Limpar filtro de busca
+  const clearSearch = () => {
+    setInternalSearchValue('');
+    if (onSearchChange) {
+      onSearchChange('');
     }
   };
 
@@ -185,20 +197,47 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
         </div>
       </div>
       <Separator />
-      <DataTable
-        searchKey="name"
-        columns={columns(refreshData)}
-        data={packages}
-        pageCount={pageCount}
-        pageSizeOptions={pageSizeOptions}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-        onSearchChange={handleSearchChange}
-        onRowClick={handleRowClick} 
-        totalUsers={packages.length}
-        onDelete={handleDelete}
-        key={`travel-packages-table-${refreshCounter}`}
-      />
+      
+      {/* Exibe badge de pesquisa ativa */}
+      {internalSearchValue && (
+        <div className="mt-4 flex items-center gap-2">
+          <Badge variant="outline" className="px-3 py-1 text-sm">
+            Resultados para: "{internalSearchValue}"
+          </Badge>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearSearch}
+            className="h-7 px-2 text-xs"
+          >
+            Limpar
+          </Button>
+        </div>
+      )}
+      
+      {isLoading || isRefreshing ? (
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span>Carregando pacotes...</span>
+        </div>
+      ) : (
+        <DataTable
+          searchKey="name"
+          searchPlaceholder="Buscar por nome do pacote..."
+          columns={columns(refreshData)}
+          data={packages}
+          pageCount={pageCount}
+          pageSizeOptions={pageSizeOptions}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          onSearchChange={handleSearchChange}
+          onRowClick={handleRowClick} 
+          totalUsers={packages.length}
+          onDelete={handleDelete}
+          key={`travel-packages-table-${refreshCounter}`}
+          initialSearchValue={internalSearchValue}
+        />
+      )}
     </>
   );
 };

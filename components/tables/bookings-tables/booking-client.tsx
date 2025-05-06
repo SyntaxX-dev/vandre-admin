@@ -1,8 +1,10 @@
+// C:\Users\User\Documents\vandre-admin\components\tables\bookings-tables\booking-client.tsx
+
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { columns } from './columns';
 import { Booking } from '@/app/api/bookings/bookings-admin';
@@ -10,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { getAdminBookings } from '@/app/api/bookings/bookings-admin';
 import { useToast } from '@/components/ui/use-toast';
 import { deleteBooking } from '@/app/api/bookings/booking-delete';
+import { Badge } from '@/components/ui/badge';
 
 interface BookingClientProps {
   data: Booking[];
@@ -18,6 +21,8 @@ interface BookingClientProps {
   onPageChange?: (pageIndex: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
   onSearchChange?: (searchValue: string) => void;
+  currentSearchValue?: string;
+  isLoading?: boolean;
 }
 
 export const BookingClient: React.FC<BookingClientProps> = ({
@@ -26,7 +31,9 @@ export const BookingClient: React.FC<BookingClientProps> = ({
   pageSizeOptions,
   onPageChange,
   onPageSizeChange,
-  onSearchChange
+  onSearchChange,
+  currentSearchValue = '',
+  isLoading = false
 }) => {
   const router = useRouter();
   const { toast } = useToast();
@@ -34,15 +41,22 @@ export const BookingClient: React.FC<BookingClientProps> = ({
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [currentPageSize, setCurrentPageSize] = useState(10);
-  const [currentSearchValue, setCurrentSearchValue] = useState('');
+  const [internalSearchValue, setInternalSearchValue] = useState(currentSearchValue);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Atualiza o termo de busca interno quando o prop mudar
+  useEffect(() => {
+    setInternalSearchValue(currentSearchValue);
+  }, [currentSearchValue]);
 
   // Function to refresh the data
   const refreshData = async () => {
     try {
+      setIsRefreshing(true);
       const result = await getAdminBookings(
         currentPageIndex * currentPageSize,
         currentPageSize,
-        currentSearchValue
+        internalSearchValue
       );
       
       setBookings(result.bookings);
@@ -52,6 +66,8 @@ export const BookingClient: React.FC<BookingClientProps> = ({
       setRefreshCounter(prev => prev + 1);
     } catch (error) {
       console.error('Error refreshing bookings:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -72,12 +88,6 @@ export const BookingClient: React.FC<BookingClientProps> = ({
       setCurrentPageSize(currentPageSize);
     }
   }, [currentPageSize, onPageSizeChange]);
-
-  useEffect(() => {
-    if (onSearchChange) {
-      setCurrentSearchValue(currentSearchValue);
-    }
-  }, [currentSearchValue, onSearchChange]);
 
   // Handle delete with immediate local state update
   const handleDelete = async (id: string) => {
@@ -130,9 +140,17 @@ export const BookingClient: React.FC<BookingClientProps> = ({
 
   // Handle search change with state tracking
   const handleSearchChange = (searchValue: string) => {
-    setCurrentSearchValue(searchValue);
+    setInternalSearchValue(searchValue);
     if (onSearchChange) {
       onSearchChange(searchValue);
+    }
+  };
+
+  // Limpar filtro de busca
+  const clearSearch = () => {
+    setInternalSearchValue('');
+    if (onSearchChange) {
+      onSearchChange('');
     }
   };
 
@@ -145,20 +163,46 @@ export const BookingClient: React.FC<BookingClientProps> = ({
         />
       </div>
       <Separator />
-      <DataTable
-        searchKey="fullName"
-        columns={columns(refreshData)}
-        data={bookings}
-        pageCount={pageCount}
-        pageSizeOptions={pageSizeOptions}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-        onSearchChange={handleSearchChange}
-        totalUsers={bookings.length}
-        onDelete={handleDelete}
-        searchPlaceholder="Buscar por nome do passageiro..."
-        key={`bookings-table-${refreshCounter}`}
-      />
+      
+      {/* Exibe badge de pesquisa ativa */}
+      {internalSearchValue && (
+        <div className="mt-4 flex items-center gap-2">
+          <Badge variant="outline" className="px-3 py-1 text-sm">
+            Resultados para: "{internalSearchValue}"
+          </Badge>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearSearch}
+            className="h-7 px-2 text-xs"
+          >
+            Limpar
+          </Button>
+        </div>
+      )}
+      
+      {isLoading || isRefreshing ? (
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span>Carregando reservas...</span>
+        </div>
+      ) : (
+        <DataTable
+          searchKey="fullName"
+          searchPlaceholder="Buscar por nome do passageiro..."
+          columns={columns(refreshData)}
+          data={bookings}
+          pageCount={pageCount}
+          pageSizeOptions={pageSizeOptions}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          onSearchChange={handleSearchChange}
+          totalUsers={bookings.length}
+          onDelete={handleDelete}
+          initialSearchValue={internalSearchValue}
+          key={`bookings-table-${refreshCounter}`}
+        />
+      )}
     </>
   );
 };

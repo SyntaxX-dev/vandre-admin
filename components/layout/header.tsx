@@ -30,9 +30,9 @@ export default function Header() {
           <MobileSidebar />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <ThemeToggle />
-        </div>
+        </div> */}
       </nav>
     </div>
   );

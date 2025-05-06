@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { BookingClient } from '@/components/tables/bookings-tables/booking-client';
 import { getAdminBookings, Booking } from '@/app/api/bookings/bookings-admin';
 import BreadCrumb from '@/components/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const breadcrumbItems = [{ title: 'Reservas', link: '/dashboard/bookings' }];
 
@@ -17,7 +17,22 @@ export default function Page() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchValue, setSearchValue] = useState<string>('');
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const isSearchActive = useRef(false);
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlSearchValue = searchParams?.get('search') || '';
+  
+  // Inicializa o valor de busca da URL apenas uma vez
+  useEffect(() => {
+    if (!initialLoadComplete && urlSearchValue) {
+      console.log('Inicializando busca da URL:', urlSearchValue);
+      setSearchValue(urlSearchValue);
+      isSearchActive.current = true;
+    }
+    setInitialLoadComplete(true);
+  }, [urlSearchValue, initialLoadComplete]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -27,16 +42,16 @@ export default function Page() {
         console.log("Buscando reservas com parâmetros:", {
           skip: pageIndex * pageSize,
           take: pageSize,
-          searchValue
+          searchValue: isSearchActive.current ? searchValue : '',
         });
         
         const data = await getAdminBookings(
           pageIndex * pageSize, 
           pageSize, 
-          searchValue
+          isSearchActive.current ? searchValue : ''
         );
         
-        console.log("Reservas recebidas:", data.bookings);
+        console.log(`Recebidos ${data.bookings.length} reservas de um total de ${data.totalCount}`);
         
         setBookings(data.bookings);
         
@@ -49,8 +64,34 @@ export default function Page() {
       }
     };
 
-    fetchBookings();
-  }, [pageIndex, pageSize, searchValue]);
+    // Garantir que a busca seja realizada quando os parâmetros mudarem
+    if (initialLoadComplete) {
+      fetchBookings();
+    }
+  }, [pageIndex, pageSize, searchValue, initialLoadComplete]);
+
+  // Manipulador para quando a busca for alterada
+  const handleSearchChange = (value: string) => {
+    console.log('Valor de busca alterado para:', value);
+    setSearchValue(value);
+    
+    // Se o valor de busca estiver vazio, desativamos o modo de busca
+    if (!value || value.trim() === '') {
+      isSearchActive.current = false;
+      // Limpamos a URL de busca
+      if (searchParams?.has('search')) {
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete('search');
+        router.push(`?${newParams.toString()}`);
+      }
+    } else {
+      // Ativamos o modo de busca
+      isSearchActive.current = true;
+    }
+    
+    // Volta para a primeira página quando fizer uma nova pesquisa
+    setPageIndex(0);
+  };
 
   return (
     <>
@@ -65,7 +106,7 @@ export default function Page() {
           </Button> */}
         </div>
         
-        {loading ? (
+        {loading && !bookings.length ? (
           <div className="flex justify-center items-center h-64">
             <p>Carregando...</p>
           </div>
@@ -76,7 +117,9 @@ export default function Page() {
             pageSizeOptions={[10, 20, 30]}
             onPageChange={setPageIndex}
             onPageSizeChange={setPageSize}
-            onSearchChange={setSearchValue}
+            onSearchChange={handleSearchChange}
+            currentSearchValue={searchValue}
+            isLoading={loading}
           />
         )}
       </div>

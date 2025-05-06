@@ -1,3 +1,5 @@
+// C:\Users\User\Documents\vandre-admin\app\api\bookings\bookings-admin.ts
+
 import { API_URL } from "@/services/apiUrl";
 import { getToken } from "@/services/token/getToken";
 import Cookies from 'js-cookie';
@@ -52,21 +54,10 @@ export const getAdminBookings = async (
     console.log("Tentando fazer requisição sem token...");
   }
 
-  let url = `${API_URL}/bookings`;
+  // Fazemos uma requisição simples para obter todas as reservas
+  const url = `${API_URL}/bookings`;
   
-  console.log("URL base:", url);
-  const params = new URLSearchParams();
-  
-  if (searchValue) {
-    params.append('search', searchValue);
-  }
-  
-  // Adicionar os parâmetros à URL se existirem
-  if (params.toString()) {
-    url += `?${params.toString()}`;
-  }
-  
-  console.log("URL final da requisição:", url);
+  console.log("URL base da requisição:", url);
 
   try {
     const response = await fetch(url, {
@@ -82,20 +73,39 @@ export const getAdminBookings = async (
     }
 
     // Analisar a resposta como um array simples de reservas
-    const bookings: Booking[] = await response.json();
+    const allBookings: Booking[] = await response.json();
     
-    console.log("Resposta da API:", bookings);
+    console.log(`Recebidas ${allBookings.length} reservas do servidor`);
     
-    // Aplicar paginação no cliente
-    const start = skip;
-    const end = start + take;
-    const paginatedBookings = bookings.slice(start, Math.min(end, bookings.length));
+    // Aplicar filtro de busca no cliente
+    let filteredBookings = [...allBookings];
     
-    console.log(`Retornando ${paginatedBookings.length} reservas de ${bookings.length} total`);
+    if (searchValue && searchValue.trim() !== '') {
+      const searchLower = searchValue.toLowerCase();
+      
+      // Filtrar por vários campos relevantes
+      filteredBookings = filteredBookings.filter(booking => 
+        booking.fullName.toLowerCase().includes(searchLower) ||
+        booking.email.toLowerCase().includes(searchLower) ||
+        booking.cpf.toLowerCase().includes(searchLower) ||
+        booking.phone.toLowerCase().includes(searchLower) ||
+        booking.boardingLocation.toLowerCase().includes(searchLower)
+      );
+      
+      console.log(`Filtrando por "${searchValue}" - Encontradas: ${filteredBookings.length} de ${allBookings.length}`);
+    }
+    
+    // Obter o total antes da paginação
+    const totalCount = filteredBookings.length;
+    
+    // Aplicar paginação
+    const paginatedBookings = filteredBookings.slice(skip, skip + take);
+    
+    console.log(`Retornando ${paginatedBookings.length} reservas de ${totalCount} filtradas`);
     
     return {
       bookings: paginatedBookings,
-      totalCount: bookings.length
+      totalCount: totalCount
     };
   } catch (error) {
     console.error("Erro ao buscar reservas:", error);

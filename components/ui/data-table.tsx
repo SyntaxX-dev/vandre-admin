@@ -1,11 +1,13 @@
-import React, { Suspense } from 'react';
+// C:\Users\User\Documents\vandre-admin\components\ui\data-table.tsx
+
+import React, { useState, useEffect } from 'react';
 import { ColumnDef, PaginationState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DoubleArrowLeftIcon, DoubleArrowRightIcon } from '@radix-ui/react-icons';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
@@ -22,6 +24,7 @@ interface DataTableProps<TData, TValue> {
   onSearchChange?: (searchValue: string) => void;
   onDelete: (id: string) => void;
   onRowClick?: (data: TData) => void;
+  initialSearchValue?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -35,25 +38,38 @@ export function DataTable<TData, TValue>({
   onPageChange,
   onPageSizeChange,
   onSearchChange,
+  onRowClick,
+  initialSearchValue = '',
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [filterValue, setFilterValue] = React.useState<string>('');
+  const [filterValue, setFilterValue] = useState<string>(initialSearchValue);
+  const [tempFilterValue, setTempFilterValue] = useState<string>(initialSearchValue);
   const page = searchParams?.get('page') ?? '1';
   const pageAsNumber = Number(page);
   const fallbackPage = isNaN(pageAsNumber) || pageAsNumber < 1 ? 1 : pageAsNumber;
   const per_page = searchParams?.get('limit') ?? '10';
   const perPageAsNumber = Number(per_page);
   const fallbackPerPage = isNaN(perPageAsNumber) ? 10 : perPageAsNumber;
+  
   const handleDelete = (id: string) => {
     if (onDelete) {
       onDelete(id);
     }
   };
+  
   const [{ pageIndex, pageSize }, setPagination] = React.useState<PaginationState>({
     pageIndex: fallbackPage - 1,
     pageSize: fallbackPerPage,
   });
+
+  // Atualiza o filterValue quando initialSearchValue mudar
+  useEffect(() => {
+    if (initialSearchValue !== filterValue) {
+      setFilterValue(initialSearchValue);
+      setTempFilterValue(initialSearchValue);
+    }
+  }, [initialSearchValue]);
 
   React.useEffect(() => {
     if (onPageChange) onPageChange(pageIndex);
@@ -63,17 +79,16 @@ export function DataTable<TData, TValue>({
     if (onPageSizeChange) onPageSizeChange(pageSize);
   }, [pageSize, onPageSizeChange]);
 
-  React.useEffect(() => {
-    if (onSearchChange) onSearchChange(filterValue);
-  }, [filterValue, onSearchChange]);
-
   const table = useReactTable({
     data,
     columns,
     pageCount: pageCount ?? -1,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: { pagination: { pageIndex, pageSize }, columnFilters: [{ id: searchKey, value: filterValue }] },
+    state: { 
+      pagination: { pageIndex, pageSize },
+      columnFilters: searchKey ? [{ id: searchKey, value: filterValue }] : []
+    },
     onPaginationChange: setPagination,
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
@@ -93,29 +108,55 @@ export function DataTable<TData, TValue>({
   };
 
   const handleSearchClick = () => {
+    // Atualiza o filterValue com o valor temporário
+    setFilterValue(tempFilterValue);
+    
+    // Notifica o componente pai
+    if (onSearchChange) {
+      onSearchChange(tempFilterValue);
+    }
+    
+    // Atualiza a URL
     const queryParams = {
       ...Object.fromEntries(searchParams.entries()),
       page: 1,
-      search: filterValue,
+      search: tempFilterValue,
     };
 
-    router.push(`?${createQueryString(queryParams)}`);
+    // Apenas atualiza a URL se houver um termo de busca
+    if (tempFilterValue.trim()) {
+      router.push(`?${createQueryString(queryParams)}`);
+    } else if (searchParams?.has('search')) {
+      // Remove o parâmetro de busca da URL se o campo de busca estiver vazio
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('search');
+      router.push(`?${newParams.toString()}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearchClick();
+    }
   };
 
   return (
     <>
-      <div className="flex items-start">
-        <Input
-          placeholder={`Search ${searchKey}...`}
-          value={filterValue}
-          onChange={(event) => setFilterValue(event.target.value)}
-          className="w-full md:max-w-sm"
-        />
-        <Button
-          className="ml-2"
-          onClick={handleSearchClick}
-        >
-          Search
+      <div className="flex items-center space-x-2 mb-4">
+        <div className="flex-1 relative">
+          <Input
+            placeholder={searchPlaceholder || `Buscar por ${searchKey}...`}
+            value={tempFilterValue}
+            onChange={(event) => setTempFilterValue(event.target.value)}
+            className="pr-10"
+            onKeyDown={handleKeyDown}
+          />
+          <div className="absolute top-0 right-0 h-full flex items-center pr-3">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+        </div>
+        <Button onClick={handleSearchClick}>
+          Buscar
         </Button>
       </div>
       <ScrollArea className="h-[calc(80vh-220px)] rounded-md border">
@@ -134,7 +175,12 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map(row => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                <TableRow 
+                  key={row.id} 
+                  data-state={row.getIsSelected() && 'selected'}
+                  onClick={() => onRowClick && onRowClick(row.original)}
+                  className={onRowClick ? "cursor-pointer hover:bg-gray-100" : ""}
+                >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -145,7 +191,7 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                  Nenhum resultado encontrado.
                 </TableCell>
               </TableRow>
             )}
@@ -156,12 +202,12 @@ export function DataTable<TData, TValue>({
       <div className="flex flex-col items-center justify-end gap-2 space-x-2 py-4 sm:flex-row">
         <div className="flex w-full items-center justify-between">
           <div className="flex-1 text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} of{' '}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+            {table.getFilteredSelectedRowModel().rows.length} de{' '}
+            {table.getFilteredRowModel().rows.length} linha(s) selecionada(s).
           </div>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
             <div className="flex items-center space-x-2">
-              <p className="whitespace-nowrap text-sm font-medium">Rows per page</p>
+              <p className="whitespace-nowrap text-sm font-medium">Linhas por página</p>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) => setPagination(prev => ({ ...prev, pageSize: Number(value) }))}
@@ -182,11 +228,11 @@ export function DataTable<TData, TValue>({
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:justify-end">
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            Página {table.getState().pagination.pageIndex + 1} de {table.getPageCount() || 1}
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              aria-label="Go to first page"
+              aria-label="Ir para primeira página"
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(0)}
@@ -195,7 +241,7 @@ export function DataTable<TData, TValue>({
               <DoubleArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
-              aria-label="Go to previous page"
+              aria-label="Ir para página anterior"
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => table.previousPage()}
@@ -204,7 +250,7 @@ export function DataTable<TData, TValue>({
               <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
-              aria-label="Go to next page"
+              aria-label="Ir para próxima página"
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => table.nextPage()}
@@ -213,7 +259,7 @@ export function DataTable<TData, TValue>({
               <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
-              aria-label="Go to last page"
+              aria-label="Ir para última página"
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}

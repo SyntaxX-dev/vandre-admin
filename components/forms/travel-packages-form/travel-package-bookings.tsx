@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { DataTable } from '@/components/ui/data-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAdminBookings, Booking } from '@/app/api/bookings/bookings-admin';
@@ -7,7 +7,7 @@ import { getTravelPackageById } from '@/app/api/travel-package/travel-package-by
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Eye, Trash, Download, FileText } from 'lucide-react';
+import { MoreHorizontal, Eye, Trash, Download, FileText, Loader2, Search, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +21,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { deleteBooking } from '@/app/api/bookings/booking-delete';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 interface TravelPackageBookingsProps {
   travelPackageId: string;
@@ -30,14 +32,20 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
   travelPackageId
 }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [packageInfo, setPackageInfo] = useState<{ name: string, travelMonth: string } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-render
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [searchValue, setSearchValue] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
   const router = useRouter();
   const { toast } = useToast();
 
+  // Função para buscar todas as reservas deste pacote
   const fetchBookings = async () => {
     try {
       setLoading(true);
@@ -50,6 +58,9 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       );
 
       setBookings(filteredBookings);
+      
+      // Aplicar filtro de busca se existir
+      applySearchFilter(filteredBookings, searchValue);
 
       // Buscar informações do pacote para o cabeçalho do PDF
       try {
@@ -68,21 +79,62 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
     }
   };
 
+  // Aplicar filtro de busca às reservas
+  const applySearchFilter = (bookingsToFilter: Booking[], term: string) => {
+    if (!term || term.trim() === '') {
+      setFilteredBookings(bookingsToFilter);
+      return;
+    }
+    
+    setIsSearching(true);
+    const searchLower = term.toLowerCase();
+    
+    const filtered = bookingsToFilter.filter(booking => 
+      booking.fullName.toLowerCase().includes(searchLower) ||
+      booking.email.toLowerCase().includes(searchLower) ||
+      booking.phone.toLowerCase().includes(searchLower) ||
+      booking.cpf.toLowerCase().includes(searchLower) ||
+      booking.boardingLocation.toLowerCase().includes(searchLower)
+    );
+    
+    setFilteredBookings(filtered);
+    setIsSearching(false);
+  };
+
+  // Carregar dados iniciais
   useEffect(() => {
     if (travelPackageId) {
       fetchBookings();
     }
-  }, [travelPackageId, refreshKey]); // Add refreshKey to dependencies
+  }, [travelPackageId, refreshKey]);
 
+  // Função para pesquisar
+  const handleSearch = (value: string) => {
+    setSearchValue(value);
+    applySearchFilter(bookings, value);
+  };
+
+  // Limpar pesquisa
+  const clearSearch = () => {
+    setSearchValue('');
+    setFilteredBookings(bookings);
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  // Função para excluir reserva
   const handleDelete = async (id: string) => {
     try {
       setDeleteLoading(true);
       await deleteBooking(id);
 
       // Atualizar a lista após excluir
-      setBookings(bookings.filter(booking => booking.id !== id));
+      const updatedBookings = bookings.filter(booking => booking.id !== id);
+      setBookings(updatedBookings);
+      applySearchFilter(updatedBookings, searchValue);
 
-      // Increase refresh key to trigger a refresh
+      // Incrementar chave de atualização para forçar re-render
       setRefreshKey(prevKey => prevKey + 1);
 
       toast({
@@ -103,13 +155,14 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
 
   // Exportar lista de passageiros para CSV
   const exportToCSV = () => {
-    if (bookings.length === 0) return;
+    const bookingsToExport = searchValue ? filteredBookings : bookings;
+    if (bookingsToExport.length === 0) return;
 
     // Preparar as colunas do CSV
     const headers = ['Nome Completo', 'CPF', 'RG', 'Email', 'Telefone', 'Data Nascimento', 'Local de Embarque'];
 
     // Preparar os dados
-    const csvData = bookings.map(booking => [
+    const csvData = bookingsToExport.map(booking => [
       booking.fullName,
       booking.cpf,
       booking.rg,
@@ -130,34 +183,57 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `passageiros-${new Date().toISOString().split('T')[0]}.csv`);
+    const fileName = searchValue 
+      ? `passageiros-filtrados-${new Date().toISOString().split('T')[0]}.csv`
+      : `passageiros-${new Date().toISOString().split('T')[0]}.csv`;
+    link.setAttribute('download', fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast({
+      title: 'CSV exportado com sucesso',
+      description: searchValue 
+        ? `Lista filtrada com ${bookingsToExport.length} passageiros`
+        : `Lista completa com ${bookingsToExport.length} passageiros`
+    });
   };
 
   // Exportar lista de passageiros para PDF
   const exportToPDF = () => {
-    if (bookings.length === 0) return;
+    const bookingsToExport = searchValue ? filteredBookings : bookings;
+    if (bookingsToExport.length === 0) return;
+    
     // @ts-ignore
     const doc = new jsPDF({
       orientation: 'landscape', // Formato paisagem para mais espaço horizontal
     });
+    
     // Adicionar título
     doc.setFontSize(18);
     doc.text('Lista de Passageiros', 20, 20);
+    
     // Adicionar informações do pacote
     doc.setFontSize(12);
     if (packageInfo) {
       doc.text(`Pacote: ${packageInfo.name}`, 20, 30);
       doc.text(`Data: ${packageInfo.travelMonth}`, 20, 36);
     }
-    doc.text(`Total de passageiros: ${bookings.length}`, 20, 42);
-    doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 48);
+    
+    // Adicionar informações da lista
+    if (searchValue) {
+      doc.text(`Filtro aplicado: "${searchValue}"`, 20, 42);
+      doc.text(`Passageiros encontrados: ${bookingsToExport.length}`, 20, 48);
+      doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 54);
+    } else {
+      doc.text(`Total de passageiros: ${bookingsToExport.length}`, 20, 42);
+      doc.text(`Data de emissão: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 48);
+    }
+    
     // Converter dados para formato de tabela
     const tableColumn = ["Nome", "CPF", "RG", "Telefone", "Email", "Data Nasc.", "Local de Embarque"];
-    const tableRows = bookings.map(booking => [
+    const tableRows = bookingsToExport.map(booking => [
       booking.fullName,
       booking.cpf,
       booking.rg,
@@ -166,20 +242,21 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
       booking.birthDate ? (typeof booking.birthDate === 'string' ? booking.birthDate.split('T')[0] : format(booking.birthDate, 'dd/MM/yyyy')) : '',
       booking.boardingLocation
     ]);
+    
     // @ts-ignore
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 55,
-      styles: { fontSize: 10, cellPadding: 3 }, // Aumentado o padding para dar mais espaço
+      startY: searchValue ? 60 : 55,
+      styles: { fontSize: 10, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 50 }, // Nome - mais espaço para nomes
-        1: { cellWidth: 35 }, // CPF - mais espaço
-        2: { cellWidth: 30 }, // RG - mais espaço
-        3: { cellWidth: 30 }, // Telefone - mais espaço
-        4: { cellWidth: 60 }, // Email - bem mais espaço para emails longos
-        5: { cellWidth: 25 }, // Data Nasc. - espaço suficiente
-        6: { cellWidth: 45 }, // Local de Embarque - mais espaço
+        0: { cellWidth: 50 }, // Nome
+        1: { cellWidth: 35 }, // CPF
+        2: { cellWidth: 30 }, // RG
+        3: { cellWidth: 30 }, // Telefone
+        4: { cellWidth: 60 }, // Email
+        5: { cellWidth: 25 }, // Data Nasc.
+        6: { cellWidth: 45 }, // Local de Embarque
       },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
@@ -197,6 +274,7 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
     });
   };
 
+  // Definição das colunas da tabela
   const columns: ColumnDef<Booking>[] = [
     {
       accessorKey: 'fullName',
@@ -284,12 +362,12 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
         <div>
           <CardTitle>Reservas para este Pacote</CardTitle>
           <CardDescription>
-            {bookings.length}
-            {bookings.length === 1 ? ' reserva encontrada' : ' reservas encontradas'}
+            {searchValue ? filteredBookings.length : bookings.length}
+            {(searchValue ? filteredBookings.length : bookings.length) === 1 ? ' reserva encontrada' : ' reservas encontradas'}
           </CardDescription>
         </div>
 
-        {bookings.length > 0 && (
+        {(searchValue ? filteredBookings.length : bookings.length) > 0 && (
           <div className="flex space-x-2">
             <Button
               variant="outline"
@@ -313,21 +391,108 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
         )}
       </CardHeader>
       <CardContent>
+        {/* Campo de busca personalizado */}
+        <div className="mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="relative flex-1">
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Buscar por nome, CPF, telefone..."
+                value={searchValue}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pr-8"
+              />
+              {searchValue && (
+                <button 
+                  onClick={clearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Badge de busca */}
+          {searchValue && (
+            <div className="mt-2 flex items-center">
+              <Badge variant="outline" className="px-2 py-1 text-xs">
+                Filtro: "{searchValue}" - {filteredBookings.length} resultado(s)
+              </Badge>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearSearch}
+                className="h-6 px-2 text-xs ml-2"
+              >
+                Limpar
+              </Button>
+            </div>
+          )}
+        </div>
+        
         {loading ? (
-          <p>Carregando reservas...</p>
-        ) : bookings.length === 0 ? (
-          <p>Nenhuma reserva encontrada para este pacote.</p>
+          <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Carregando reservas...</span>
+          </div>
+        ) : (searchValue ? filteredBookings : bookings).length === 0 ? (
+          <p>
+            {searchValue 
+              ? `Nenhuma reserva encontrada para "${searchValue}".` 
+              : "Nenhuma reserva encontrada para este pacote."}
+          </p>
         ) : (
-          <DataTable<Booking, any>
-            columns={columns}
-            data={bookings}
-            searchKey="fullName"
-            searchPlaceholder="Buscar por nome do passageiro..."
-            totalUsers={bookings.length}
-            pageCount={1}
-            onDelete={(id: string) => handleDelete(id)}
-            key={`travel-package-bookings-${refreshKey}`} // Add key to force re-render
-          />
+          <div className="overflow-hidden rounded-md border">
+            <table className="w-full caption-bottom text-sm">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  {columns.filter(col => col.id !== 'actions').map((column, index) => (
+                    <th key={index} className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                      {typeof column.header === 'string' ? column.header : ''}
+                    </th>
+                  ))}
+                  <th className="h-10 px-4 text-right align-middle font-medium text-muted-foreground">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(searchValue ? filteredBookings : bookings).map((booking, index) => (
+                  <tr key={booking.id} className={index % 2 ? "bg-muted/50" : "bg-white"}>
+                    <td className="p-4 align-middle">{booking.fullName}</td>
+                    <td className="p-4 align-middle">{booking.cpf}</td>
+                    <td className="p-4 align-middle">{booking.phone}</td>
+                    <td className="p-4 align-middle"><span className="text-xs">{booking.email}</span></td>
+                    <td className="p-4 align-middle">{booking.boardingLocation}</td>
+                    <td className="p-4 align-middle">
+                      {format(new Date(booking.created_at), 'dd/MM/yyyy')}
+                    </td>
+                    <td className="p-4 align-middle text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => router.push(`/dashboard/bookings/${booking.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setOpenAlertId(booking.id)}>
+                            <Trash className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </CardContent>
     </Card>

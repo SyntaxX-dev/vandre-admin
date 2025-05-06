@@ -1,3 +1,5 @@
+// C:\Users\User\Documents\vandre-admin\app\api\travel-package\travel-packages-admin.ts
+
 import { API_URL } from "@/services/apiUrl";
 import { getToken } from "@/services/token/getToken";
 import Cookies from 'js-cookie';
@@ -17,17 +19,6 @@ export interface TravelPackage {
   created_at: Date | string;
   updated_at: Date | string;
   imageUrl?: string | null;
-}
-
-interface GetTravelPackagesResponse {
-  data: TravelPackage[];
-  meta: {
-    totalItems: number;
-    itemCount: number;
-    itemsPerPage: number;
-    totalPages: number;
-    currentPage: number;
-  };
 }
 
 export const getAdminTravelPackages = async (
@@ -66,40 +57,68 @@ export const getAdminTravelPackages = async (
     throw new Error("Token não encontrado");
   }
 
-  let url = `${API_URL}/travel-packages`;
+  // Fazemos uma requisição simples para obter todos os pacotes
+  const url = `${API_URL}/travel-packages`;
   
-  if (searchValue) {
-    url += `?search=${encodeURIComponent(searchValue)}`;
-  }
-  
-  if (month) {
-    url += `${searchValue ? '&' : '?'}month=${encodeURIComponent(month)}`;
-  }
-
   console.log("Fazendo requisição para:", url);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Erro ao buscar pacotes de viagem: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar pacotes de viagem: ${response.status} ${response.statusText}`);
+    }
+
+    // Analisar a resposta como um array simples de pacotes de viagem
+    const allPackages: TravelPackage[] = await response.json();
+    
+    // Aplicar filtros no cliente
+    let filteredPackages = [...allPackages];
+    
+    // Aplicar filtro de busca
+    if (searchValue && searchValue.trim() !== '') {
+      const searchTerms = searchValue.toLowerCase().split(' ');
+      filteredPackages = filteredPackages.filter(pkg => {
+        const nameMatch = searchTerms.every(term => 
+          pkg.name.toLowerCase().includes(term) ||
+          pkg.description?.toLowerCase().includes(term) ||
+          pkg.travelMonth?.toLowerCase().includes(term)
+        );
+        return nameMatch;
+      });
+      
+      console.log(`Filtrando por "${searchValue}" - Encontrados: ${filteredPackages.length} de ${allPackages.length}`);
+    }
+    
+    // Aplicar filtro de mês
+    if (month && month.trim() !== '') {
+      filteredPackages = filteredPackages.filter(pkg => 
+        pkg.travelMonth.toLowerCase().includes(month.toLowerCase())
+      );
+      
+      console.log(`Filtrando por mês "${month}" - Encontrados: ${filteredPackages.length} de ${allPackages.length}`);
+    }
+    
+    // Obter o total antes da paginação
+    const totalCount = filteredPackages.length;
+    
+    // Aplicar paginação
+    const paginatedPackages = filteredPackages.slice(skip, skip + take);
+    
+    console.log(`Retornando ${paginatedPackages.length} pacotes de ${totalCount} filtrados`);
+    
+    return {
+      travelPackages: paginatedPackages,
+      totalCount: totalCount
+    };
+  } catch (error) {
+    console.error("Erro na requisição:", error);
+    throw error;
   }
-
-  // Analisar a resposta como um array simples de pacotes de viagem
-  const travelPackages: TravelPackage[] = await response.json();
-  
-  // Aplicar paginação no cliente
-  const start = skip;
-  const end = skip + take;
-  const paginatedPackages = travelPackages.slice(start, end);
-  
-  return {
-    travelPackages: paginatedPackages,
-    totalCount: travelPackages.length
-  };
 };
