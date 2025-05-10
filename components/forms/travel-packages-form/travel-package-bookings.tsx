@@ -233,15 +233,33 @@ export const TravelPackageBookings: React.FC<TravelPackageBookingsProps> = ({
     
     // Converter dados para formato de tabela
     const tableColumn = ["Nome", "CPF", "RG", "Telefone", "Email", "Data Nasc.", "Local de Embarque"];
-    const tableRows = bookingsToExport.map(booking => [
-      booking.fullName,
-      booking.cpf,
-      booking.rg,
-      booking.phone,
-      booking.email,
-      booking.birthDate ? (typeof booking.birthDate === 'string' ? booking.birthDate.split('T')[0] : format(booking.birthDate, 'dd/MM/yyyy')) : '',
-      booking.boardingLocation
-    ]);
+    const tableRows = bookingsToExport.map(booking => {
+      // Formatação correta da data de nascimento
+      let formattedBirthDate = '';
+      if (booking.birthDate) {
+        if (typeof booking.birthDate === 'string') {
+          // Se for string, converter para Date e formatar
+          const parts = booking.birthDate.split('T')[0].split('-');
+          if (parts.length === 3) {
+            // Formato brasileiro: DD/MM/YYYY
+            formattedBirthDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        } else {
+          // Se for Date, usar o format
+          formattedBirthDate = format(booking.birthDate, 'dd/MM/yyyy');
+        }
+      }
+      
+      return [
+        booking.fullName,
+        booking.cpf,
+        booking.rg,
+        booking.phone,
+        booking.email,
+        formattedBirthDate,
+        booking.boardingLocation
+      ];
+    });
     
     // @ts-ignore
     autoTable(doc, {
