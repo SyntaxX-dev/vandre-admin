@@ -1,5 +1,3 @@
-// C:\Users\User\Documents\vandre-admin\components\tables\travel-package-tables\travel-package-client.tsx
-
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Heading } from '@/components/ui/heading';
@@ -93,8 +91,23 @@ export const TravelPackageClient: React.FC<TravelPackageClientProps> = ({
     }
   }, [currentPageSize, onPageSizeChange]);
 
-  // Função para lidar com clique na linha
-  const handleRowClick = (packageData: TravelPackage) => {
+  // Função para lidar com clique na linha - melhorada para evitar conflitos
+  const handleRowClick = (packageData: TravelPackage, event: React.MouseEvent) => {
+    // Verificar se o clique foi em um botão ou elemento de ação
+    const target = event.target as HTMLElement;
+    
+    // Se o clique foi em um botão, dropdown ou seus filhos, não navegar
+    if (
+      target.closest('button') || 
+      target.closest('[role="menuitem"]') ||
+      target.closest('[data-radix-collection-item]') ||
+      target.closest('.dropdown-menu') ||
+      target.tagName === 'BUTTON' ||
+      target.closest('[data-state]') // Para elementos do Radix UI
+    ) {
+      return;
+    }
+    
     router.push(`/dashboard/travel-packages/${packageData.id}?tab=bookings`);
   };
   

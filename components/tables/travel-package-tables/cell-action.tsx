@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface CellActionProps {
   data: TravelPackage;
-  onDeleteSuccess?: () => void; // New prop to handle successful deletion
+  onDeleteSuccess?: () => void;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ 
@@ -72,16 +72,27 @@ export const CellAction: React.FC<CellActionProps> = ({
     }
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que o clique da linha seja acionado
     if (travelPackageId) {
       router.push(`/dashboard/travel-packages/${travelPackageId}?tab=details`);
     }
   };
 
-  const handleViewBookings = () => {
+  const handleViewBookings = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que o clique da linha seja acionado
     if (travelPackageId) {
       router.push(`/dashboard/travel-packages/${travelPackageId}?tab=bookings`);
     }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que o clique da linha seja acionado
+    setOpen(true);
+  };
+
+  const handleDropdownClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que o clique da linha seja acionado
   };
 
   return (
@@ -92,29 +103,35 @@ export const CellAction: React.FC<CellActionProps> = ({
         onConfirm={onConfirm}
         loading={loading}
       />
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Abrir menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+      <div onClick={handleDropdownClick}>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="h-8 w-8 p-0"
+              onClick={handleDropdownClick}
+            >
+              <span className="sr-only">Abrir menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Ações</DropdownMenuLabel>
 
-          <DropdownMenuItem onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" /> Editar
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={handleViewBookings}>
-            <Users className="mr-2 h-4 w-4" /> Ver Reservas
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            <Trash className="mr-2 h-4 w-4" /> Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuItem onClick={handleEdit}>
+              <Edit className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={handleViewBookings}>
+              <Users className="mr-2 h-4 w-4" /> Ver Reservas
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={handleDelete}>
+              <Trash className="mr-2 h-4 w-4" /> Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </>
   );
 };

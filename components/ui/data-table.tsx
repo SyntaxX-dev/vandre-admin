@@ -21,7 +21,7 @@ interface DataTableProps<TData, TValue> {
   onPageSizeChange?: (pageSize: number) => void;
   onSearchChange?: (searchValue: string) => void;
   onDelete: (id: string) => void;
-  onRowClick?: (data: TData) => void;
+  onRowClick?: (data: TData, event: React.MouseEvent) => void; // Atualizado para incluir o evento
   initialSearchValue?: string;
 }
 
@@ -179,6 +179,13 @@ export function DataTable<TData, TValue>({
     setPagination(prev => ({ ...prev, pageIndex }));
   };
 
+  // Função para lidar com clique na linha
+  const handleRowClick = (rowData: TData, event: React.MouseEvent) => {
+    if (onRowClick) {
+      onRowClick(rowData, event);
+    }
+  };
+
   return (
     <>
       <div className="flex items-center space-x-2 mb-4">
@@ -217,7 +224,7 @@ export function DataTable<TData, TValue>({
                 <TableRow 
                   key={row.id} 
                   data-state={row.getIsSelected() && 'selected'}
-                  onClick={() => onRowClick && onRowClick(row.original)}
+                  onClick={(event) => handleRowClick(row.original, event)} // Passando o evento
                   className={onRowClick ? "cursor-pointer hover:bg-gray-100" : ""}
                 >
                   {row.getVisibleCells().map(cell => (
