@@ -10,12 +10,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Booking } from '@/app/api/bookings/bookings-admin';
 import { deleteBooking } from '@/app/api/bookings/booking-delete';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import { getTravelPackageById } from '@/app/api/travel-package/travel-package-by-id';
 import { TravelPackage } from '@/app/api/travel-package/travel-packages-admin';
@@ -59,7 +59,7 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
 
   const formatDate = (dateString: string | Date) => {
     try {
-      const date = typeof dateString === 'string' 
+      const date = typeof dateString === 'string'
         ? new Date(dateString)
         : dateString;
       return format(date, 'dd/MM/yyyy');
@@ -72,11 +72,11 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
     try {
       setLoading(true);
       await deleteBooking(booking.id);
-      
+
       toast({
         title: 'Reserva excluída com sucesso'
       });
-      
+
       router.push('/dashboard/bookings');
       router.refresh();
     } catch (error: any) {
@@ -115,7 +115,7 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
         </Button>
       </div>
       <Separator />
-      
+
       {/* Card com detalhes do pacote de viagem */}
       <Card className="mt-6">
         <CardHeader>
@@ -176,7 +176,7 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
           )}
         </CardContent>
       </Card>
-      
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Informações do Passageiro</CardTitle>
@@ -207,9 +207,17 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
             <h3 className="text-sm font-medium text-gray-500">Telefone</h3>
             <p className="mt-1 text-base">{booking.phone}</p>
           </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">Cidade</h3>
+            <p className="mt-1 text-base">{booking.city}</p>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">Como nos Conheceu</h3>
+            <p className="mt-1 text-base">{booking.howDidYouMeetUs}</p>
+          </div>
         </CardContent>
       </Card>
-      
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Informações da Viagem</CardTitle>
@@ -230,7 +238,7 @@ export const BookingDetail: React.FC<BookingDetailProps> = ({
           </div>
         </CardContent>
       </Card>
-      
+
       <div className="mt-6 flex justify-end">
         <Button
           onClick={() => router.push('/dashboard/bookings')}
