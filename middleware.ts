@@ -1,9 +1,23 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { MAINTENANCE_CONFIG } from "./constants/maintenance";
 
 export function middleware(request: NextRequest) {
   const authCookie = request.cookies.get("token");
   const response = NextResponse.next();
+
+  // Verificar modo de manutenção
+  if (MAINTENANCE_CONFIG.isMaintenanceMode) {
+    const pathname = request.nextUrl.pathname;
+    
+    // Se já estiver na página de manutenção, permitir acesso
+    if (pathname === "/maintenance") {
+      return response;
+    }
+    
+    // Se não estiver na página de manutenção, redirecionar e PARAR aqui
+    return NextResponse.redirect(new URL("/maintenance", request.url));
+  }
 
   // Verifica se a rota é publica
   if (request.nextUrl.pathname === "/") {
